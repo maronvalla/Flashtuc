@@ -78,7 +78,6 @@ const Dashboard = () => {
         facturacion: 0
     });
     const [recentActivity, setRecentActivity] = useState<any[]>([]);
-    const [loading, setLoading] = useState(true);
 
     useEffect(() => {
         const fetchStats = async () => {
@@ -89,8 +88,6 @@ const Dashboard = () => {
             } catch (error) {
                 console.error('Error fetching stats:', error);
                 toast.error('Error al cargar estadísticas');
-            } finally {
-                setLoading(false);
             }
         };
 
@@ -145,7 +142,7 @@ const Dashboard = () => {
                     </div>
 
                     <div className="space-y-3">
-                        {recentActivity.map((envio, idx) => (
+                        {recentActivity.map((envio) => (
                             <ActivityItem
                                 key={envio.id}
                                 title={`${envio.destinatario_nombre} - ${envio.zona?.nombre || 'S/Z'}`}
