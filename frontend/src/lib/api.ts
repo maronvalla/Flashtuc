@@ -75,4 +75,7 @@ export const api = {
     // Payments / Liquidations
     getLiquidations: () => request<any[]>('/api/liquidaciones'),
     createPayment: (data: any) => request<any>('/api/liquidaciones', { method: 'POST', body: JSON.stringify(data) }),
+
+    // Stats
+    getStats: () => request<any>('/api/stats'),
 };

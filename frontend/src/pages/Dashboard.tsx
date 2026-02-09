@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import {
     Users,
@@ -12,6 +13,8 @@ import {
     AlertCircle
 } from 'lucide-react';
 import { cn } from '../lib/utils';
+import { api } from '../lib/api';
+import toast from 'react-hot-toast';
 
 const StatCard = ({ title, value, icon: Icon, trend, colorClass }: { title: string, value: string, icon: any, trend: string, colorClass: string }) => (
     <motion.div
@@ -41,7 +44,9 @@ const ActivityItem = ({ title, time, status, amount }: { title: string, time: st
     <div className="flex items-center justify-between p-5 rounded-3xl bg-white border border-slate-50 hover:border-orange-200 hover:shadow-md transition-all cursor-pointer group">
         <div className="flex items-center gap-4">
             <div className="w-12 h-12 bg-slate-50 rounded-2xl flex items-center justify-center transition-colors group-hover:bg-orange-50">
-                {status === 'En Ruta' ? <Truck className="text-blue-500" size={20} /> : <CheckCircle2 className="text-emerald-500" size={20} />}
+                {status === 'EN_RUTA' ? <Truck className="text-blue-500" size={20} /> :
+                    status === 'ENTREGADO' ? <CheckCircle2 className="text-emerald-500" size={20} /> :
+                        <Clock className="text-slate-400" size={20} />}
             </div>
             <div>
                 <h4 className="font-bold text-slate-900 text-sm leading-tight mb-1">{title}</h4>
@@ -51,7 +56,9 @@ const ActivityItem = ({ title, time, status, amount }: { title: string, time: st
                     <span className="text-slate-200">•</span>
                     <span className={cn(
                         "px-2 py-0.5 rounded-md",
-                        status === 'En Ruta' ? "bg-blue-50 text-blue-600" : "bg-emerald-50 text-emerald-600"
+                        status === 'EN_RUTA' ? "bg-blue-50 text-blue-600" :
+                            status === 'ENTREGADO' ? "bg-emerald-50 text-emerald-600" :
+                                "bg-slate-50 text-slate-500"
                     )}>{status}</span>
                 </div>
             </div>
@@ -64,6 +71,45 @@ const ActivityItem = ({ title, time, status, amount }: { title: string, time: st
 );
 
 const Dashboard = () => {
+    const [stats, setStats] = useState<any>({
+        enviosActivos: 0,
+        totalClientes: 0,
+        rutasHoy: 0,
+        facturacion: 0
+    });
+    const [recentActivity, setRecentActivity] = useState<any[]>([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        const fetchStats = async () => {
+            try {
+                const data = await api.getStats();
+                setStats(data.stats);
+                setRecentActivity(data.recentActivity);
+            } catch (error) {
+                console.error('Error fetching stats:', error);
+                toast.error('Error al cargar estadísticas');
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchStats();
+    }, []);
+
+    const formatCurrency = (value: number) => {
+        return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(value);
+    };
+
+    const getTimeAgo = (dateString: string) => {
+        const diff = new Date().getTime() - new Date(dateString).getTime();
+        const minutes = Math.floor(diff / 60000);
+        if (minutes < 60) return `Hace ${minutes} min`;
+        const hours = Math.floor(minutes / 60);
+        if (hours < 24) return `Hace ${hours} h`;
+        return `Hace ${Math.floor(hours / 24)} d`;
+    };
+
     return (
         <div className="space-y-12">
             <header className="flex items-end justify-between">
@@ -81,10 +127,10 @@ const Dashboard = () => {
             </header>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                <StatCard title="Envíos Activos" value="128" icon={Truck} trend="+12.5%" colorClass="bg-orange-500" />
-                <StatCard title="Total Clientes" value="1,042" icon={Users} trend="+8.2%" colorClass="bg-slate-900" />
-                <StatCard title="Rutas de Hoy" value="12" icon={Map} trend="+15.0%" colorClass="bg-blue-600" />
-                <StatCard title="Facturación" value="$42,500" icon={CreditCard} trend="+10.1%" colorClass="bg-emerald-600" />
+                <StatCard title="Envíos Activos" value={stats.enviosActivos.toString()} icon={Truck} trend="--" colorClass="bg-orange-500" />
+                <StatCard title="Total Clientes" value={stats.totalClientes.toString()} icon={Users} trend="--" colorClass="bg-slate-900" />
+                <StatCard title="Rutas de Hoy" value={stats.rutasHoy.toString()} icon={Map} trend="--" colorClass="bg-blue-600" />
+                <StatCard title="Facturación" value={formatCurrency(stats.facturacion)} icon={CreditCard} trend="--" colorClass="bg-emerald-600" />
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
@@ -99,10 +145,20 @@ const Dashboard = () => {
                     </div>
 
                     <div className="space-y-3">
-                        <ActivityItem title="Envío a Sucursal Yerba Buena" time="Hace 5 min" status="En Ruta" amount="2,450.00" />
-                        <ActivityItem title="Distribución Zona Norte" time="Hace 12 min" status="Entregado" amount="1,820.00" />
-                        <ActivityItem title="Paquete #1024 - Sector Sur" time="Hace 25 min" status="En Ruta" amount="3,100.00" />
-                        <ActivityItem title="Carga Pesada - Cliente Mayorista" time="Hace 42 min" status="Entregado" amount="12,400.00" />
+                        {recentActivity.map((envio, idx) => (
+                            <ActivityItem
+                                key={envio.id}
+                                title={`${envio.destinatario_nombre} - ${envio.zona?.nombre || 'S/Z'}`}
+                                time={getTimeAgo(envio.createdAt)}
+                                status={envio.estado}
+                                amount={envio.tarifa_total?.toString() || '0'}
+                            />
+                        ))}
+                        {recentActivity.length === 0 && (
+                            <div className="text-center py-10 text-slate-400 text-xs font-bold uppercase tracking-widest">
+                                No hay actividad reciente
+                            </div>
+                        )}
                     </div>
                 </div>
 
@@ -117,7 +173,9 @@ const Dashboard = () => {
                             </div>
                             <h4 className="text-2xl font-black mb-3 leading-tight tracking-tight">Optimización de Flota Activa</h4>
                             <p className="text-slate-400 text-sm font-medium leading-relaxed">
-                                Se han detectado 3 rutas con solapamiento. Inicia la re-optimización para ahorrar un 12% en combustible hoy.
+                                {stats.rutasHoy > 0
+                                    ? `Hay ${stats.rutasHoy} rutas activas hoy. Se recomienda verificar la optimización para asegurar puntualidad.`
+                                    : "No hay rutas activas en este momento. Inicia la planificación del día."}
                             </p>
                         </div>
 
@@ -125,10 +183,10 @@ const Dashboard = () => {
                             <div className="space-y-3">
                                 <div className="flex justify-between items-center">
                                     <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Eficiencia Logística</span>
-                                    <span className="text-xs font-black text-orange-400">84%</span>
+                                    <span className="text-xs font-black text-orange-400">100%</span>
                                 </div>
                                 <div className="h-2 w-full bg-white/5 rounded-full overflow-hidden border border-white/5">
-                                    <div className="h-full w-[84%] bg-linear-to-r from-orange-400 to-orange-600 rounded-full shadow-[0_0_15px_rgba(249,115,22,0.4)]"></div>
+                                    <div className="h-full w-full bg-linear-to-r from-orange-400 to-orange-600 rounded-full shadow-[0_0_15px_rgba(249,115,22,0.4)]"></div>
                                 </div>
                             </div>
 
@@ -137,7 +195,7 @@ const Dashboard = () => {
                                 whileTap={{ scale: 0.98 }}
                                 className="w-full bg-white text-slate-950 font-black py-4 rounded-2xl transition-all shadow-glow-white uppercase text-[10px] tracking-[0.2em]"
                             >
-                                Optimizar Ahora
+                                Ver Rutas
                             </motion.button>
                         </div>
                     </div>

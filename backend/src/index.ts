@@ -32,6 +32,7 @@ import tariffRoutes from './routes/tariffRoutes';
 import envioRoutes from './routes/envioRoutes';
 import rutaRoutes from './routes/rutaRoutes';
 import liquidacionRoutes from './routes/liquidacionRoutes';
+import statsRoutes from './routes/statsRoutes';
 
 app.use('/api/clientes', clientRoutes);
 app.use('/api/zonas', zoneRoutes);
@@ -39,6 +40,7 @@ app.use('/api/tarifas', tariffRoutes);
 app.use('/api/envios', envioRoutes);
 app.use('/api/rutas', rutaRoutes);
 app.use('/api/liquidaciones', liquidacionRoutes);
+app.use('/api/stats', statsRoutes);
 
 app.listen(port, () => {
     console.log(`Server running on port ${port}`);
