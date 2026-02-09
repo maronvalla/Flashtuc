@@ -1,7 +1,10 @@
 const API_BASE = import.meta.env.VITE_API_BASE || '';
 
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
-    const response = await fetch(`${API_BASE}${path}`, {
+    const url = `${API_BASE}${path}`;
+    console.log(`[API Request] ${options.method || 'GET'} ${url}`);
+
+    const response = await fetch(url, {
         ...options,
         headers: {
             'Content-Type': 'application/json',
@@ -11,7 +14,10 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
 
     if (!response.ok) {
         const error = await response.json().catch(() => ({}));
-        const errorMessage = error.message || error.error || `Error ${response.status}: ${response.statusText}`;
+        let errorMessage = error.message || error.error || `Error ${response.status}: ${response.statusText}`;
+        if (response.status === 404) {
+            errorMessage += ` (URL: ${url})`;
+        }
         throw new Error(errorMessage);
     }
 
