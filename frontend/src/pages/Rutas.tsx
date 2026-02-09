@@ -1,4 +1,5 @@
-﻿import { useState, useEffect } from 'react';
+﻿```
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     Map,
@@ -6,7 +7,6 @@ import {
     Play,
     Truck,
     MapPin,
-    ChevronRight,
     Calendar,
     CheckCircle2,
     Package,
@@ -14,7 +14,6 @@ import {
     CheckCircle,
     XCircle,
     RotateCcw,
-    X,
     Flag
 } from 'lucide-react';
 import { cn } from '../lib/utils';
@@ -108,10 +107,10 @@ const Rutas = () => {
         const currentIndex = estadosOrder.indexOf(envio.estado);
         const nextEstado = estadosOrder[(currentIndex + 1) % estadosOrder.length];
 
-        const t = toast.loading(`Cambiando a ${nextEstado}...`);
+        const t = toast.loading(`Cambiando a ${ nextEstado }...`);
         try {
             await api.updateShipment(envio.id.toString(), { estado: nextEstado });
-            toast.success(`Envío ${nextEstado}`, { id: t });
+            toast.success(`Envío ${ nextEstado } `, { id: t });
             fetchData();
         } catch (err: any) {
             toast.error('Error al actualizar estado', { id: t });
@@ -223,7 +222,7 @@ const Rutas = () => {
                                             )}
                                         >
                                             <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center font-black text-slate-300 text-xs border border-slate-100 transition-colors group-hover/item:border-orange-100 font-mono shrink-0">
-                                                {ruta.estado === 'EN_CURSO' ? getEnvioStatusIcon(e.estado) : `#${i + 1}`}
+                                                {ruta.estado === 'EN_CURSO' ? getEnvioStatusIcon(e.estado) : `#${ i + 1 } `}
                                             </div>
                                             <div className="flex-1 min-w-0">
                                                 <p className={cn(
