@@ -1,4 +1,7 @@
-const API_BASE = import.meta.env.VITE_API_BASE || '';
+let API_BASE = import.meta.env.VITE_API_BASE || '';
+if (API_BASE && !API_BASE.startsWith('http') && API_BASE.includes('.')) {
+    API_BASE = `https://${API_BASE}`;
+}
 console.log('[API Settings] Detected Base URL:', API_BASE || '(Using Local Proxy)');
 
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
