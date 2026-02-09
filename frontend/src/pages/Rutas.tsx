@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Map, Plus, Play, CheckCircle, Truck, MapPin, ChevronRight, Calendar } from 'lucide-react';
+import { Map, Plus, Play, Truck, MapPin, ChevronRight, Calendar } from 'lucide-react';
 
 const Rutas = () => {
     const [rutas, setRutas] = useState<any[]>([]);

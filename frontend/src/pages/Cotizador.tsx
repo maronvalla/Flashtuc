@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Calculator, Send, CheckCircle, Package, Truck, ArrowRight } from 'lucide-react';
+import { Calculator, CheckCircle, Package, Truck, ArrowRight } from 'lucide-react';
+import { cn } from '../lib/utils';
 
 const Cotizador = () => {
     const [formData, setFormData] = useState({

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Package, Truck, User, MapPin, Search, Filter, MoreHorizontal, ChevronRight } from 'lucide-react';
+import { Truck, MapPin, Search, Filter, MoreHorizontal } from 'lucide-react';
 
 const Envios = () => {
     const [envios, setEnvios] = useState<any[]>([]);
