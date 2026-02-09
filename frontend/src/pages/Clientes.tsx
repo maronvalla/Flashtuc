@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
     Plus,
     Search,
@@ -11,23 +11,46 @@ import {
     MoreHorizontal,
     UserCircle2,
     Building2,
-    Calendar
+    Calendar,
+    X
 } from 'lucide-react';
-
+import { api } from '../lib/api';
+import toast from 'react-hot-toast';
 
 const Clientes = () => {
     const [clientes, setClientes] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [newClient, setNewClient] = useState({ nombre: '', dni_cuit: '', email: '', telefono: '', direccion: '' });
+
+    const fetchClientes = async () => {
+        try {
+            const data = await api.getCustomers();
+            setClientes(data);
+        } catch (err: any) {
+            toast.error('Error al cargar clientes: ' + err.message);
+        } finally {
+            setLoading(false);
+        }
+    };
 
     useEffect(() => {
-        fetch('http://localhost:3000/api/clientes')
-            .then(res => res.json())
-            .then(data => {
-                setClientes(data);
-                setLoading(false);
-            })
-            .catch(err => console.error(err));
+        fetchClientes();
     }, []);
+
+    const handleCreateClient = async (e: React.FormEvent) => {
+        e.preventDefault();
+        const t = toast.loading('Creando cliente...');
+        try {
+            await api.createCustomer(newClient);
+            toast.success('Cliente creado correctamente', { id: t });
+            setIsModalOpen(false);
+            setNewClient({ nombre: '', dni_cuit: '', email: '', telefono: '', direccion: '' });
+            fetchClientes();
+        } catch (err: any) {
+            toast.error('Error al crear cliente: ' + err.message, { id: t });
+        }
+    };
 
     return (
         <div className="space-y-10">
@@ -43,6 +66,7 @@ const Clientes = () => {
                 <motion.button
                     whileHover={{ scale: 1.02, y: -2 }}
                     whileTap={{ scale: 0.98 }}
+                    onClick={() => setIsModalOpen(true)}
                     className="bg-orange-500 text-white px-10 py-5 rounded-[2rem] font-black text-xs uppercase tracking-widest flex items-center gap-3 shadow-2xl shadow-orange-500/20 transition-all hover:bg-orange-600"
                 >
                     <Plus size={20} strokeWidth={3} /> Nuevo Cliente
@@ -151,12 +175,106 @@ const Clientes = () => {
                                 Tu base de datos está vacía. Registra tu primer cliente para comenzar a gestionar envíos y rutas.
                             </p>
                         </div>
-                        <button className="px-10 py-4 bg-slate-950 text-white text-[10px] font-black uppercase tracking-[0.2em] rounded-2xl shadow-2xl hover:bg-slate-800 transition-all">
+                        <button
+                            onClick={() => setIsModalOpen(true)}
+                            className="px-10 py-4 bg-slate-950 text-white text-[10px] font-black uppercase tracking-[0.2em] rounded-2xl shadow-2xl hover:bg-slate-800 transition-all font-sans"
+                        >
                             Registrar Cliente Ahora
                         </button>
                     </div>
                 )}
             </div>
+
+            <AnimatePresence>
+                {isModalOpen && (
+                    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            onClick={() => setIsModalOpen(false)}
+                            className="absolute inset-0 bg-slate-950/40 backdrop-blur-sm"
+                        />
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.9, y: 20 }}
+                            className="relative bg-white rounded-[2.5rem] shadow-2xl w-full max-w-lg overflow-hidden border border-slate-100"
+                        >
+                            <div className="p-8 border-b border-slate-50 flex items-center justify-between">
+                                <div>
+                                    <h3 className="text-2xl font-black text-slate-900 tracking-tight">Nuevo Cliente</h3>
+                                    <p className="text-slate-400 text-xs font-bold uppercase tracking-widest mt-1">Alta de cuenta corporativa</p>
+                                </div>
+                                <button
+                                    onClick={() => setIsModalOpen(false)}
+                                    className="w-10 h-10 rounded-full bg-slate-50 flex items-center justify-center text-slate-400 hover:bg-orange-50 hover:text-orange-500 transition-all"
+                                >
+                                    <X size={18} />
+                                </button>
+                            </div>
+                            <form onSubmit={handleCreateClient} className="p-8 space-y-6">
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Nombre o Razón Social</label>
+                                    <input
+                                        required
+                                        value={newClient.nombre}
+                                        onChange={(e) => setNewClient({ ...newClient, nombre: e.target.value })}
+                                        className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-6 py-4 text-sm font-semibold outline-none focus:ring-4 focus:ring-orange-500/5 focus:border-orange-500/20 transition-all"
+                                        placeholder="Ej: Logística S.A."
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">DNI / CUIT</label>
+                                    <input
+                                        required
+                                        value={newClient.dni_cuit}
+                                        onChange={(e) => setNewClient({ ...newClient, dni_cuit: e.target.value })}
+                                        className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-6 py-4 text-sm font-semibold outline-none focus:ring-4 focus:ring-orange-500/5 transition-all"
+                                        placeholder="20-12345678-9"
+                                    />
+                                </div>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Teléfono</label>
+                                        <input
+                                            value={newClient.telefono}
+                                            onChange={(e) => setNewClient({ ...newClient, telefono: e.target.value })}
+                                            className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-6 py-4 text-sm font-semibold outline-none focus:ring-4 focus:ring-orange-500/5 transition-all"
+                                            placeholder="381655..."
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Email</label>
+                                        <input
+                                            type="email"
+                                            value={newClient.email}
+                                            onChange={(e) => setNewClient({ ...newClient, email: e.target.value })}
+                                            className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-6 py-4 text-sm font-semibold outline-none focus:ring-4 focus:ring-orange-500/5 transition-all"
+                                            placeholder="contacto@..."
+                                        />
+                                    </div>
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Dirección Fiscal</label>
+                                    <input
+                                        value={newClient.direccion}
+                                        onChange={(e) => setNewClient({ ...newClient, direccion: e.target.value })}
+                                        className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-6 py-4 text-sm font-semibold outline-none focus:ring-4 focus:ring-orange-500/5 transition-all"
+                                        placeholder="Calle 123, Tucumán"
+                                    />
+                                </div>
+                                <button
+                                    type="submit"
+                                    className="w-full bg-orange-500 text-white py-5 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl shadow-orange-500/20 hover:bg-orange-600 transition-all mt-4"
+                                >
+                                    Confirmar Registro
+                                </button>
+                            </form>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
         </div>
     );
 };

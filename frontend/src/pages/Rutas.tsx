@@ -2,27 +2,55 @@
 import { motion } from 'framer-motion';
 import { Map, Plus, Play, Truck, MapPin, ChevronRight, Calendar, CheckCircle2, Package } from 'lucide-react';
 import { cn } from '../lib/utils';
+import { api } from '../lib/api';
+import toast from 'react-hot-toast';
 
 const Rutas = () => {
     const [rutas, setRutas] = useState<any[]>([]);
     const [enviosSinRuta, setEnviosSinRuta] = useState<any[]>([]);
+    const [loading, setLoading] = useState(true);
+
+    const fetchData = async () => {
+        try {
+            const [rutasData, enviosData] = await Promise.all([
+                api.getRoutes(),
+                api.getShipments()
+            ]);
+            setRutas(rutasData);
+            setEnviosSinRuta(enviosData.filter((e: any) => !e.ruta_id));
+        } catch (err: any) {
+            toast.error('Error al cargar rutas/envios');
+        } finally {
+            setLoading(false);
+        }
+    };
 
     useEffect(() => {
-        fetch('http://localhost:3000/api/rutas').then(res => res.json()).then(setRutas);
-        fetch('http://localhost:3000/api/envios').then(res => res.json()).then(data => {
-            setEnviosSinRuta(data.filter((e: any) => !e.ruta_id));
-        });
+        fetchData();
     }, []);
 
     const handleCrearRuta = async () => {
-        const res = await fetch('http://localhost:3000/api/rutas', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ fecha: new Date(), chofer_nombre: 'Chofer Default' })
-        });
-        if (res.ok) {
-            const newRuta = await res.json();
-            setRutas([...rutas, newRuta]);
+        const t = toast.loading('Creando hoja de ruta...');
+        try {
+            await api.createRoute({
+                fecha: new Date().toISOString(),
+                chofer_nombre: 'Pendiente de Asignar'
+            });
+            toast.success('Hoja de ruta creada', { id: t });
+            fetchData();
+        } catch (err: any) {
+            toast.error('Error al crear ruta', { id: t });
+        }
+    };
+
+    const handleAsignarEnvio = async (envioId: number, rutaId: number) => {
+        const t = toast.loading('Asignando envío...');
+        try {
+            await api.updateShipment(envioId.toString(), { ruta_id: rutaId });
+            toast.success('Envío asignado', { id: t });
+            fetchData();
+        } catch (err: any) {
+            toast.error('Error al asignar', { id: t });
         }
     };
 
@@ -82,7 +110,7 @@ const Rutas = () => {
                                 </div>
                                 <span className={cn(
                                     "px-6 py-2 rounded-full text-[10px] font-black uppercase tracking-[0.2em] border shadow-sm",
-                                    ruta.estado === 'ACTIVA' ? "bg-orange-50 text-orange-600 border-orange-100" : "bg-slate-50 text-slate-500 border-slate-100"
+                                    ruta.estado === 'ACTIVA' || ruta.estado === 'EN_CURSO' ? "bg-orange-50 text-orange-600 border-orange-100" : "bg-slate-50 text-slate-500 border-slate-100"
                                 )}>
                                     {ruta.estado}
                                 </span>
@@ -119,13 +147,19 @@ const Rutas = () => {
                             <div className="p-10 pt-4">
                                 <motion.button
                                     whileHover={{ scale: 1.01, y: -2 }}
-                                    className="w-full bg-linear-to-br from-orange-400 to-orange-600 text-white font-black py-6 rounded-3xl flex items-center justify-center gap-3 transition-all shadow-xl shadow-orange-500/20 uppercase text-[10px] tracking-[0.3em]"
+                                    className="w-full bg-slate-900 text-white font-black py-6 rounded-3xl flex items-center justify-center gap-3 transition-all shadow-xl shadow-slate-900/20 uppercase text-[10px] tracking-[0.3em]"
                                 >
                                     <Play size={16} fill="currentColor" strokeWidth={0} /> Iniciar Operativo
                                 </motion.button>
                             </div>
                         </motion.div>
                     ))}
+                    {rutas.length === 0 && !loading && (
+                        <div className="text-center py-40 bg-slate-50 rounded-[3rem] border-2 border-dashed border-slate-200">
+                            <Truck size={48} className="mx-auto text-slate-200 mb-4" />
+                            <p className="text-slate-500 font-black">No hay hojas de ruta generadas</p>
+                        </div>
+                    )}
                 </div>
 
                 <div className="lg:col-span-4 h-fit sticky top-28 space-y-8">
@@ -159,10 +193,15 @@ const Rutas = () => {
                                             <p className="text-[10px] font-bold text-slate-400 truncate tracking-tight">{e.direccion_destino}</p>
                                         </div>
                                         <div className="flex justify-between items-center pt-5 border-t border-white/5">
-                                            <span className="text-[9px] font-black text-orange-500 uppercase tracking-widest">{e.zona.nombre}</span>
-                                            <button className="flex items-center gap-1.5 text-[9px] font-black text-white px-3 py-1.5 bg-white/10 rounded-lg hover:bg-orange-500 transition-all uppercase tracking-widest">
-                                                Asignar <Plus size={10} strokeWidth={3} />
-                                            </button>
+                                            <span className="text-[9px] font-black text-orange-500 uppercase tracking-widest">{e.zona?.nombre || 'S/Z'}</span>
+                                            {rutas.length > 0 && (
+                                                <button
+                                                    onClick={() => handleAsignarEnvio(e.id, rutas[rutas.length - 1].id)}
+                                                    className="flex items-center gap-1.5 text-[9px] font-black text-white px-3 py-1.5 bg-white/10 rounded-lg hover:bg-orange-500 transition-all uppercase tracking-widest"
+                                                >
+                                                    Asignar <Plus size={10} strokeWidth={3} />
+                                                </button>
+                                            )}
                                         </div>
                                     </motion.div>
                                 ))}

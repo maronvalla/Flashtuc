@@ -1,12 +1,26 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { CreditCard, FileText, CheckCircle, Download, TrendingUp, Wallet } from 'lucide-react';
+import { api } from '../lib/api';
+import toast from 'react-hot-toast';
 
 const Liquidaciones = () => {
     const [liquidaciones, setLiquidaciones] = useState<any[]>([]);
+    const [loading, setLoading] = useState(true);
+
+    const fetchData = async () => {
+        try {
+            const data = await api.getLiquidations();
+            setLiquidaciones(data);
+        } catch (err: any) {
+            toast.error('Error al cargar liquidaciones');
+        } finally {
+            setLoading(false);
+        }
+    };
 
     useEffect(() => {
-        fetch('http://localhost:3000/api/liquidaciones').then(res => res.json()).then(setLiquidaciones);
+        fetchData();
     }, []);
 
     const totalLiquidado = liquidaciones.reduce((sum, l) => sum + l.monto, 0);
@@ -82,7 +96,7 @@ const Liquidaciones = () => {
 
                             <div>
                                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Liquidación <span className="text-slate-900">#0{liq.id}</span></p>
-                                <h3 className="text-2xl font-black text-slate-800 mb-6">{liq.cliente.nombre}</h3>
+                                <h3 className="text-2xl font-black text-slate-800 mb-6">{liq.cliente?.nombre || 'S/N'}</h3>
                                 <div className="flex justify-between items-end border-t border-slate-50 pt-8">
                                     <div>
                                         <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-2">Total Acreedor</p>
@@ -95,7 +109,7 @@ const Liquidaciones = () => {
                             </div>
                         </motion.div>
                     ))}
-                    {liquidaciones.length === 0 && (
+                    {liquidaciones.length === 0 && !loading && (
                         <div className="col-span-full py-40 border-2 border-dashed border-slate-100 rounded-[3rem] flex flex-col items-center justify-center text-slate-300">
                             <CreditCard size={64} className="opacity-10 mb-4" />
                             <p className="font-black">No hay liquidaciones generadas aún.</p>

@@ -1,7 +1,9 @@
 ﻿import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Calculator, CheckCircle, Package, Truck, ArrowRight } from 'lucide-react';
+import { Calculator, Package, Truck, ArrowRight } from 'lucide-react';
 import { cn } from '../lib/utils';
+import { api } from '../lib/api';
+import toast from 'react-hot-toast';
 
 const Cotizador = () => {
     const [formData, setFormData] = useState({
@@ -16,38 +18,71 @@ const Cotizador = () => {
     const [zonas, setZonas] = useState<any[]>([]);
     const [clientes, setClientes] = useState<any[]>([]);
     const [cotizacion, setCotizacion] = useState<any>(null);
-    const [mensaje, setMensaje] = useState('');
     const [isCalculating, setIsCalculating] = useState(false);
 
     useEffect(() => {
-        fetch('http://localhost:3000/api/zonas').then(res => res.json()).then(setZonas);
-        fetch('http://localhost:3000/api/clientes').then(res => res.json()).then(setClientes);
+        const loadInitialData = async () => {
+            try {
+                const [zonasData, clientesData] = await Promise.all([
+                    api.getZones(),
+                    api.getCustomers()
+                ]);
+                setZonas(zonasData);
+                setClientes(clientesData);
+            } catch (err: any) {
+                toast.error('Error al cargar datos iniciales');
+            }
+        };
+        loadInitialData();
     }, []);
 
     const handleCotizar = async () => {
-        if (!formData.zona_id || formData.km <= 0) return;
+        if (!formData.zona_id || formData.km <= 0) {
+            toast.error('Por favor completa zona y KMs');
+            return;
+        }
         setIsCalculating(true);
-        const res = await fetch('http://localhost:3000/api/envios/cotizar', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(formData)
-        });
-        const data = await res.json();
-        setTimeout(() => {
+        const t = toast.loading('Calculando tarifa...');
+        try {
+            const data = await api.cotizarShipment({
+                ...formData,
+                cliente_id: parseInt(formData.cliente_id),
+                zona_id: parseInt(formData.zona_id),
+                bultos: parseInt(formData.bultos.toString()),
+                km: parseFloat(formData.km.toString())
+            });
             setCotizacion(data);
+            toast.success('Cotización generada', { id: t });
+        } catch (err: any) {
+            toast.error('Error al cotizar: ' + err.message, { id: t });
+        } finally {
             setIsCalculating(false);
-        }, 600);
+        }
     };
 
     const handleCrearEnvio = async () => {
-        const res = await fetch('http://localhost:3000/api/envios', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(formData)
-        });
-        if (res.ok) {
-            setMensaje('Envío registrado con éxito');
-            setTimeout(() => setMensaje(''), 4000);
+        const t = toast.loading('Registrando envío...');
+        try {
+            await api.createShipment({
+                ...formData,
+                cliente_id: parseInt(formData.cliente_id),
+                zona_id: parseInt(formData.zona_id),
+                bultos: parseInt(formData.bultos.toString()),
+                km: parseFloat(formData.km.toString())
+            });
+            toast.success('Envío registrado con éxito', { id: t });
+            setCotizacion(null);
+            setFormData({
+                cliente_id: '',
+                destinatario_nombre: '',
+                direccion_destino: '',
+                bultos: 1,
+                km: 0,
+                zona_id: '',
+                urgente: false
+            });
+        } catch (err: any) {
+            toast.error('Error al registrar envío: ' + err.message, { id: t });
         }
     };
 
@@ -166,7 +201,7 @@ const Cotizador = () => {
                             whileTap={{ scale: 0.99 }}
                             onClick={handleCotizar}
                             disabled={isCalculating}
-                            className="w-full grad-slate hover:opacity-90 text-white font-black py-5 rounded-2xl transition-all shadow-xl flex items-center justify-center gap-3"
+                            className="w-full bg-slate-900 hover:opacity-90 text-white font-black py-5 rounded-2xl transition-all shadow-xl flex items-center justify-center gap-3"
                         >
                             {isCalculating ? "Calculando..." : <><Calculator size={20} /> Calcular Tarifa</>}
                         </motion.button>
@@ -202,7 +237,7 @@ const Cotizador = () => {
                                         <span className="text-white">${cotizacion.desglose.porKm}</span>
                                     </div>
                                     <div className="flex justify-between items-center text-slate-400 font-bold text-sm">
-                                        <span>Ajuste Zona ({formData.zona_id})</span>
+                                        <span>Ajuste Zona</span>
                                         <span className="text-orange-400">x {cotizacion.desglose.multiplicadorZona}</span>
                                     </div>
                                     {formData.urgente && (
@@ -224,20 +259,10 @@ const Cotizador = () => {
                                 <motion.button
                                     whileHover={{ y: -5 }}
                                     onClick={handleCrearEnvio}
-                                    className="w-full grad-orange text-white font-black py-6 rounded-3xl flex items-center justify-center gap-3 hover:shadow-glow transition-all"
+                                    className="w-full bg-orange-500 text-white font-black py-6 rounded-3xl flex items-center justify-center gap-3 hover:shadow-glow transition-all"
                                 >
                                     GENERAR ORDEN <ArrowRight size={20} />
                                 </motion.button>
-
-                                {mensaje && (
-                                    <motion.div
-                                        initial={{ y: 20, opacity: 0 }}
-                                        animate={{ y: 0, opacity: 1 }}
-                                        className="mt-6 flex items-center gap-2 justify-center text-green-400 font-bold text-sm bg-green-400/10 p-4 rounded-2xl border border-green-400/20"
-                                    >
-                                        <CheckCircle size={18} /> {mensaje}
-                                    </motion.div>
-                                )}
                             </motion.div>
                         ) : (
                             <div className="h-[600px] border-2 border-dashed border-slate-200 rounded-[3rem] flex flex-col items-center justify-center text-center p-12 text-slate-400">
@@ -256,3 +281,4 @@ const Cotizador = () => {
 };
 
 export default Cotizador;
+
