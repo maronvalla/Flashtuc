@@ -1,7 +1,5 @@
 import { Request, Response } from 'express';
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import prisma from '../db';
 
 export const cotizarEnvio = async (req: Request, res: Response) => {
     const { km, bultos, zona_id, urgente } = req.body;

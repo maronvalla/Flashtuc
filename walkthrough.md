@@ -23,10 +23,11 @@ La plataforma ha sido optimizada para operar en un stack completamente gratuito 
 1. Sube el código a GitHub.
 2. Crea un nuevo proyecto en **Railway** desde tu repo.
 3. En la pestaña **Settings** del servicio, añade un **Volume** (Ej: `/data`) para que el archivo SQLite sea persistente.
-4. Define las variables de entorno en Railway:
-   - `DATABASE_URL`: `file:/data/flashtuc.db` (asegúrate que la ruta coincida con el volumen).
+4. El backend creará automáticamente la carpeta `data/` dentro del directorio de ejecución.
+5. Define las variables de entorno en Railway:
+   - `DATABASE_URL`: `file:./data/flashtuc.sqlite`
    - `PORT`: `8080`.
-5. Railway ejecutará `npm start` automáticamente.
+6. Railway ejecutará `npm start` automáticamente.
 
 ### 2. Frontend en Vercel
 1. Crea un nuevo proyecto en **Vercel** vinculado a tu repo.
