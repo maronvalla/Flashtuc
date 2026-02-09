@@ -1,4 +1,4 @@
-const API_BASE = import.meta.env.VITE_API_BASE || '';
+const API_BASE = '';
 
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
     const response = await fetch(`${API_BASE}${path}`, {
@@ -10,8 +10,9 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
     });
 
     if (!response.ok) {
-        const error = await response.json().catch(() => ({ message: 'Error desconocido' }));
-        throw new Error(error.message || `Error ${response.status}: ${response.statusText}`);
+        const error = await response.json().catch(() => ({}));
+        const errorMessage = error.message || error.error || `Error ${response.status}: ${response.statusText}`;
+        throw new Error(errorMessage);
     }
 
     if (response.status === 204) return {} as T;
@@ -20,26 +21,26 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
 
 export const api = {
     // Customers
-    getCustomers: () => request<any[]>('/api/clients'),
-    createCustomer: (data: any) => request<any>('/api/clients', { method: 'POST', body: JSON.stringify(data) }),
-    updateCustomer: (id: string, data: any) => request<any>(`/api/clients/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    getCustomers: () => request<any[]>('/api/clientes'),
+    createCustomer: (data: any) => request<any>('/api/clientes', { method: 'POST', body: JSON.stringify(data) }),
+    updateCustomer: (id: string, data: any) => request<any>(`/api/clientes/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
 
     // Shipments
-    getShipments: () => request<any[]>('/api/shipments'),
-    cotizarShipment: (data: any) => request<any>('/api/shipments/cotizar', { method: 'POST', body: JSON.stringify(data) }),
-    createShipment: (data: any) => request<any>('/api/shipments', { method: 'POST', body: JSON.stringify(data) }),
-    updateShipment: (id: string, data: any) => request<any>(`/api/shipments/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    getShipments: () => request<any[]>('/api/envios'),
+    cotizarShipment: (data: any) => request<any>('/api/envios/cotizar', { method: 'POST', body: JSON.stringify(data) }),
+    createShipment: (data: any) => request<any>('/api/envios', { method: 'POST', body: JSON.stringify(data) }),
+    updateShipment: (id: string, data: any) => request<any>(`/api/envios/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
 
     // Routes
-    getRoutes: () => request<any[]>('/api/routes'),
-    createRoute: (data: any) => request<any>('/api/routes', { method: 'POST', body: JSON.stringify(data) }),
-    optimizeRoute: (id: string) => request<any>(`/api/routes/${id}/optimize`, { method: 'POST' }),
+    getRoutes: () => request<any[]>('/api/rutas'),
+    createRoute: (data: any) => request<any>('/api/rutas', { method: 'POST', body: JSON.stringify(data) }),
+    optimizeRoute: (id: string) => request<any>(`/api/rutas/${id}/optimize`, { method: 'POST' }),
 
     // Zones & Tariffs
-    getZones: () => request<any[]>('/api/zones'),
-    getTariffs: () => request<any[]>('/api/tariffs'),
+    getZones: () => request<any[]>('/api/zonas'),
+    getTariffs: () => request<any[]>('/api/tarifas'),
 
     // Payments / Liquidations
-    getLiquidations: () => request<any[]>('/api/liquidations'),
-    createPayment: (data: any) => request<any>('/api/liquidations', { method: 'POST', body: JSON.stringify(data) }),
+    getLiquidations: () => request<any[]>('/api/liquidaciones'),
+    createPayment: (data: any) => request<any>('/api/liquidaciones', { method: 'POST', body: JSON.stringify(data) }),
 };
