@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Calculator, CheckCircle, Package, Truck, ArrowRight } from 'lucide-react';
 import { cn } from '../lib/utils';

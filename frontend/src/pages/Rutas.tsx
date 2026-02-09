@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Map, Plus, Play, Truck, MapPin, ChevronRight, Calendar } from 'lucide-react';
 
@@ -63,7 +63,7 @@ const Rutas = () => {
                                         <div className="flex items-center gap-2 text-slate-400 font-bold text-xs mt-1">
                                             <Calendar size={12} />
                                             <span>{new Date(ruta.fecha).toLocaleDateString()}</span>
-                                            <span className="text-slate-200">•</span>
+                                            <span className="text-slate-200"></span>
                                             <span>ID: #{ruta.id}</span>
                                         </div>
                                     </div>
