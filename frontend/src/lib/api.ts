@@ -62,7 +62,14 @@ export const api = {
 
     // Zones & Tariffs
     getZones: () => request<any[]>('/api/zonas'),
+    createZone: (data: any) => request<any>('/api/zonas', { method: 'POST', body: JSON.stringify(data) }),
+    updateZone: (id: string, data: any) => request<any>(`/api/zonas/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    deleteZone: (id: string) => request<any>(`/api/zonas/${id}`, { method: 'DELETE' }),
+
     getTariffs: () => request<any[]>('/api/tarifas'),
+    createTariff: (data: any) => request<any>('/api/tarifas', { method: 'POST', body: JSON.stringify(data) }),
+    updateTariff: (id: string, data: any) => request<any>(`/api/tarifas/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    deleteTariff: (id: string) => request<any>(`/api/tarifas/${id}`, { method: 'DELETE' }),
 
     // Payments / Liquidations
     getLiquidations: () => request<any[]>('/api/liquidaciones'),

@@ -9,6 +9,7 @@ import Cotizador from './pages/Cotizador';
 import Envios from './pages/Envios';
 import Rutas from './pages/Rutas';
 import Liquidaciones from './pages/Liquidaciones';
+import NotFound from './pages/NotFound';
 
 function App() {
   return (
@@ -23,6 +24,7 @@ function App() {
           <Route path="cotizador" element={<Cotizador />} />
           <Route path="liquidaciones" element={<Liquidaciones />} />
           <Route path="configuracion" element={<Configuracion />} />
+          <Route path="*" element={<NotFound />} />
         </Route>
       </Routes>
     </BrowserRouter>

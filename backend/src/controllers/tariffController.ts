@@ -6,6 +6,7 @@ export const getTariffs = async (req: Request, res: Response) => {
         const tariffs = await prisma.tarifa.findMany();
         res.json(tariffs);
     } catch (error) {
+        console.error('Error in getTariffs:', error);
         res.status(500).json({ error: 'Error fetching tariffs' });
     }
 };
@@ -25,6 +26,7 @@ export const createTariff = async (req: Request, res: Response) => {
         });
         res.status(201).json(newTariff);
     } catch (error) {
+        console.error('Error in createTariff:', error);
         res.status(500).json({ error: 'Error creating tariff' });
     }
 };
@@ -46,6 +48,7 @@ export const updateTariff = async (req: Request, res: Response) => {
         });
         res.json(updatedTariff);
     } catch (error) {
+        console.error('Error in updateTariff:', error);
         res.status(500).json({ error: 'Error updating tariff' });
     }
 };
