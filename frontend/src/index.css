@@ -1,11 +1,12 @@
 @import "tailwindcss";
 
+@theme {
+  --font-sans: "Outfit", ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+}
+
 :root {
-  --font-sans: 'Outfit', sans-serif;
   --color-primary: #f97316;
-  /* Orange 500 */
   --color-primary-dark: #ea580c;
-  /* Orange 600 */
   --color-slate-950: #020617;
 }
 
