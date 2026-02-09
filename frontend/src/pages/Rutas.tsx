@@ -54,6 +54,17 @@ const Rutas = () => {
         }
     };
 
+    const handleIniciarOperativo = async (id: number) => {
+        const t = toast.loading('Iniciando operativo de ruta...');
+        try {
+            await api.updateRoute(id.toString(), { estado: 'EN_CURSO' });
+            toast.success('Ruta en curso', { id: t });
+            fetchData();
+        } catch (err: any) {
+            toast.error('Error al iniciar operativo', { id: t });
+        }
+    };
+
     return (
         <div className="space-y-12">
             <header className="flex flex-col md:flex-row md:items-end justify-between gap-6">
@@ -62,14 +73,14 @@ const Rutas = () => {
                         <span className="w-1.5 h-1.5 rounded-full bg-orange-500"></span>
                         <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]">Logística Activa</span>
                     </div>
-                    <h2 className="text-5xl font-black text-slate-900 tracking-tighter">Hojas de Ruta</h2>
+                    <h2 className="text-5xl font-black text-slate-900 tracking-tighter uppercase italic">Hojas de Ruta</h2>
                     <p className="text-slate-500 font-medium mt-1">Planificación dinámica y optimización de rutas diarias.</p>
                 </div>
                 <motion.button
                     whileHover={{ scale: 1.02, y: -2 }}
                     whileTap={{ scale: 0.98 }}
                     onClick={handleCrearRuta}
-                    className="bg-slate-950 text-white px-10 py-5 rounded-[2rem] font-black text-xs uppercase tracking-widest flex items-center gap-3 shadow-2xl shadow-slate-900/20 transition-all"
+                    className="bg-slate-950 text-white px-10 py-5 rounded-[2rem] font-black text-xs uppercase tracking-widest flex items-center gap-3 shadow-2xl shadow-slate-900/20 transition-all font-mono italic"
                 >
                     <Plus size={20} strokeWidth={3} /> Nueva Hoja de Ruta
                 </motion.button>
@@ -83,25 +94,25 @@ const Rutas = () => {
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ delay: idx * 0.1, ease: "easeOut" }}
                             key={ruta.id}
-                            className="bg-white rounded-[3.5rem] border border-slate-100 shadow-sm overflow-hidden group hover:shadow-2xl hover:shadow-slate-200/50 transition-all"
+                            className="bg-white rounded-[3.5rem] border border-slate-100 shadow-premium overflow-hidden group hover:shadow-2xl hover:shadow-slate-200/50 transition-all"
                         >
                             <div className="p-10 pb-6 flex justify-between items-start">
                                 <div className="flex items-center gap-6">
                                     <div className="w-20 h-20 bg-slate-50 border border-slate-100 rounded-3xl flex flex-col items-center justify-center transition-transform group-hover:rotate-1 group-hover:bg-white group-hover:shadow-lg group-hover:shadow-slate-100 group-hover:border-white">
-                                        <span className="text-[10px] font-black text-slate-400 uppercase leading-none mb-1">Día</span>
-                                        <span className="text-3xl font-black text-slate-900 leading-none">{new Date(ruta.fecha).getDate()}</span>
+                                        <span className="text-[10px] font-black text-slate-400 uppercase leading-none mb-1 font-mono">Día</span>
+                                        <span className="text-3xl font-black text-slate-900 leading-none font-mono tracking-tighter">{new Date(ruta.fecha).getDate()}</span>
                                     </div>
                                     <div>
                                         <div className="flex items-center gap-2 mb-1">
-                                            <h3 className="text-2xl font-black text-slate-900 tracking-tight">{ruta.chofer_nombre}</h3>
-                                            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500"></div>
+                                            <h3 className="text-2xl font-black text-slate-900 tracking-tight uppercase italic">{ruta.chofer_nombre}</h3>
+                                            <div className={cn("w-1.5 h-1.5 rounded-full", ruta.estado === 'EN_CURSO' ? 'bg-emerald-500 animate-pulse' : 'bg-slate-300')}></div>
                                         </div>
-                                        <div className="flex items-center gap-4 text-slate-400 font-bold text-[10px] uppercase tracking-widest">
-                                            <div className="flex items-center gap-1.5 bg-slate-100 px-3 py-1 rounded-full">
+                                        <div className="flex items-center gap-4 text-slate-400 font-bold text-[10px] uppercase tracking-widest font-mono">
+                                            <div className="flex items-center gap-1.5 bg-slate-100 px-3 py-1 rounded-full italic">
                                                 <Calendar size={12} />
                                                 <span>{new Date(ruta.fecha).toLocaleDateString()}</span>
                                             </div>
-                                            <div className="flex items-center gap-1.5 bg-slate-100 px-3 py-1 rounded-full">
+                                            <div className="flex items-center gap-1.5 bg-slate-100 px-3 py-1 rounded-full italic">
                                                 <Truck size={12} />
                                                 <span>ID #{ruta.id}</span>
                                             </div>
@@ -109,8 +120,10 @@ const Rutas = () => {
                                     </div>
                                 </div>
                                 <span className={cn(
-                                    "px-6 py-2 rounded-full text-[10px] font-black uppercase tracking-[0.2em] border shadow-sm",
-                                    ruta.estado === 'ACTIVA' || ruta.estado === 'EN_CURSO' ? "bg-orange-50 text-orange-600 border-orange-100" : "bg-slate-50 text-slate-500 border-slate-100"
+                                    "px-6 py-2 rounded-full text-[10px] font-black uppercase tracking-[0.2em] border shadow-sm font-mono italic",
+                                    ruta.estado === 'EN_CURSO' ? "bg-emerald-50 text-emerald-600 border-emerald-100" :
+                                        ruta.estado === 'PROGRAMADA' ? "bg-orange-50 text-orange-600 border-orange-100" :
+                                            "bg-slate-50 text-slate-500 border-slate-100"
                                 )}>
                                     {ruta.estado}
                                 </span>
@@ -119,12 +132,12 @@ const Rutas = () => {
                             <div className="px-10 py-6 space-y-3">
                                 {ruta.envios?.map((e: any) => (
                                     <div key={e.id} className="flex items-center gap-5 p-5 bg-slate-50/50 border border-slate-100 rounded-3xl hover:bg-white hover:border-orange-200 hover:shadow-lg hover:shadow-orange-500/5 transition-all group/item cursor-pointer">
-                                        <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center font-black text-slate-300 text-xs border border-slate-100 transition-colors group-hover/item:border-orange-100">
+                                        <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center font-black text-slate-300 text-xs border border-slate-100 transition-colors group-hover/item:border-orange-100 font-mono">
                                             #{e.id}
                                         </div>
                                         <div className="flex-1">
-                                            <p className="text-base font-black text-slate-900 leading-tight mb-1">{e.destinatario_nombre}</p>
-                                            <div className="flex items-center gap-2 text-slate-400 font-bold text-[10px] uppercase tracking-widest">
+                                            <p className="text-base font-black text-slate-900 leading-tight mb-1 uppercase tracking-tight">{e.destinatario_nombre}</p>
+                                            <div className="flex items-center gap-2 text-slate-400 font-bold text-[10px] uppercase tracking-widest italic">
                                                 <MapPin size={10} className="text-orange-500" />
                                                 <span className="truncate max-w-[200px]">{e.direccion_destino}</span>
                                             </div>
@@ -139,17 +152,23 @@ const Rutas = () => {
                                         <div className="w-16 h-16 rounded-full bg-white flex items-center justify-center shadow-sm">
                                             <Map size={24} className="opacity-20" />
                                         </div>
-                                        <p className="text-xs font-black uppercase tracking-widest text-slate-400">Sin despachos asignados</p>
+                                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 font-mono italic">Sin despachos asignados</p>
                                     </div>
                                 )}
                             </div>
 
                             <div className="p-10 pt-4">
                                 <motion.button
-                                    whileHover={{ scale: 1.01, y: -2 }}
-                                    className="w-full bg-slate-900 text-white font-black py-6 rounded-3xl flex items-center justify-center gap-3 transition-all shadow-xl shadow-slate-900/20 uppercase text-[10px] tracking-[0.3em]"
+                                    whileHover={ruta.estado === 'PROGRAMADA' ? { scale: 1.01, y: -2 } : {}}
+                                    whileTap={ruta.estado === 'PROGRAMADA' ? { scale: 0.98 } : {}}
+                                    disabled={ruta.estado !== 'PROGRAMADA'}
+                                    onClick={() => handleIniciarOperativo(ruta.id)}
+                                    className={cn(
+                                        "w-full font-black py-6 rounded-3xl flex items-center justify-center gap-3 transition-all shadow-xl uppercase text-[10px] tracking-[0.3em] font-mono italic",
+                                        ruta.estado === 'PROGRAMADA' ? "bg-slate-900 text-white shadow-slate-900/20 hover:bg-black" : "bg-slate-100 text-slate-400 shadow-none cursor-not-allowed"
+                                    )}
                                 >
-                                    <Play size={16} fill="currentColor" strokeWidth={0} /> Iniciar Operativo
+                                    <Play size={16} fill="currentColor" strokeWidth={0} /> {ruta.estado === 'PROGRAMADA' ? 'Iniciar Operativo' : 'Operativo en curso'}
                                 </motion.button>
                             </div>
                         </motion.div>

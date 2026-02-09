@@ -83,3 +83,33 @@ export const optimizarRuta = async (req: Request, res: Response) => {
         res.status(500).json({ error: 'Error al optimizar ruta' });
     }
 };
+
+export const updateRuta = async (req: Request, res: Response) => {
+    const { id } = req.params;
+    const { chofer_nombre, estado, fecha } = req.body;
+    try {
+        const updateData: any = {};
+        if (chofer_nombre !== undefined) updateData.chofer_nombre = chofer_nombre;
+        if (estado !== undefined) updateData.estado = estado;
+        if (fecha !== undefined) updateData.fecha = new Date(fecha);
+
+        const updatedRuta = await prisma.ruta.update({
+            where: { id: Number(id) },
+            data: updateData,
+            include: { envios: true }
+        });
+
+        // Si la ruta inicia, pasamos todos sus envíos a 'EN_RUTA' (por si alguno quedó en PENDIENTE)
+        if (estado === 'EN_CURSO') {
+            await prisma.envio.updateMany({
+                where: { ruta_id: Number(id) },
+                data: { estado: 'EN_RUTA' }
+            });
+        }
+
+        res.json(updatedRuta);
+    } catch (error) {
+        console.error('Error updating route:', error);
+        res.status(500).json({ error: 'Error al actualizar ruta' });
+    }
+};

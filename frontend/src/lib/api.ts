@@ -58,6 +58,7 @@ export const api = {
     // Routes
     getRoutes: () => request<any[]>('/api/rutas'),
     createRoute: (data: any) => request<any>('/api/rutas', { method: 'POST', body: JSON.stringify(data) }),
+    updateRoute: (id: string, data: any) => request<any>(`/api/rutas/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
     optimizeRoute: (id: string) => request<any>(`/api/rutas/${id}/optimize`, { method: 'POST' }),
 
     // Zones & Tariffs
