@@ -65,6 +65,7 @@ model Envio {
   pago_remitente      Float        @default(0) // Lo que se le entrega al cliente (cod - comision)
   lat                 Float        @default(0)
   lng                 Float        @default(0)
+  posicion            Int          @default(0)
   estado              String       @default("PENDIENTE")
   ruta_id             Int?
   ruta                Ruta?        @relation(fields: [ruta_id], references: [id])

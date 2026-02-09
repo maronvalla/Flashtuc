@@ -19,7 +19,13 @@ export const createRuta = async (req: Request, res: Response) => {
 
 export const getRutas = async (req: Request, res: Response) => {
     try {
-        const rutas = await prisma.ruta.findMany({ include: { envios: true } });
+        const rutas = await prisma.ruta.findMany({
+            include: {
+                envios: {
+                    orderBy: { posicion: 'asc' }
+                }
+            }
+        });
         res.json(rutas);
     } catch (error) {
         res.status(500).json({ error: 'Error al obtener rutas' });
@@ -56,16 +62,18 @@ export const optimizarRuta = async (req: Request, res: Response) => {
 
         const envios = [...ruta.envios];
         const enviosOrdenados = [];
-        let currentPos = { lat: -26.808, lng: -65.217 }; // San Miguel de Tucumán (Centro)
+        let currentPos = { lat: -26.8241, lng: -65.2226 }; // San Miguel de Tucumán (Centro aproximado)
 
+        // Algoritmo Nearest-Neighbor
         while (envios.length > 0) {
             let nearestIndex = 0;
             let minDistance = Infinity;
 
             for (let i = 0; i < envios.length; i++) {
+                // Cálculo de distancia euclidiana simple para coordenadas
                 const d = Math.sqrt(
-                    Math.pow(envios[i].lat - currentPos.lat, 2) +
-                    Math.pow(envios[i].lng - currentPos.lng, 2)
+                    Math.pow((envios[i].lat || 0) - currentPos.lat, 2) +
+                    Math.pow((envios[i].lng || 0) - currentPos.lng, 2)
                 );
                 if (d < minDistance) {
                     minDistance = d;
@@ -75,11 +83,25 @@ export const optimizarRuta = async (req: Request, res: Response) => {
 
             const nearest = envios.splice(nearestIndex, 1)[0];
             enviosOrdenados.push(nearest);
-            currentPos = { lat: nearest.lat, lng: nearest.lng };
+            currentPos = { lat: nearest.lat || 0, lng: nearest.lng || 0 };
         }
 
-        res.json({ message: 'Ruta optimizada con Nearest-Neighbor', envios: enviosOrdenados });
+        // Persistir el nuevo orden en la base de datos usando el campo 'posicion'
+        await Promise.all(
+            enviosOrdenados.map((envio, idx) =>
+                prisma.envio.update({
+                    where: { id: envio.id },
+                    data: { posicion: idx + 1 }
+                })
+            )
+        );
+
+        res.json({
+            message: 'Ruta optimizada con éxito',
+            envios: enviosOrdenados.map((e, idx) => ({ ...e, posicion: idx + 1 }))
+        });
     } catch (error) {
+        console.error('Error in optimizarRuta:', error);
         res.status(500).json({ error: 'Error al optimizar ruta' });
     }
 };
