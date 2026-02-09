@@ -1,0 +1,111 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Cliente {
+  id        Int      @id @default(autoincrement())
+  nombre    String
+  dni_cuit  String
+  telefono  String?
+  email     String?
+  direccion String?
+  zona_id   Int?
+  zona      Zona?    @relation(fields: [zona_id], references: [id])
+  envios    Envio[]
+  liquidaciones Liquidacion[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Zona {
+  id            Int       @id @default(autoincrement())
+  nombre        String
+  multiplicador Float     @default(1.0)
+  clientes      Cliente[]
+  envios        Envio[]
+}
+
+model Tarifa {
+  id                  Int     @id @default(autoincrement())
+  nombre              String
+  base                Float   @default(0)
+  precio_por_bulto    Float   @default(0)
+  precio_por_km       Float   @default(0)
+  multiplicador_urgente Float @default(1.0)
+  activa              Boolean @default(true)
+}
+
+enum EstadoEnvio {
+  PENDIENTE
+  EN_RUTA
+  ENTREGADO
+  CANCELADO
+}
+
+model Envio {
+  id                  Int          @id @default(autoincrement())
+  cliente_id          Int
+  cliente             Cliente      @relation(fields: [cliente_id], references: [id])
+  destinatario_nombre String
+  destinatario_telefono String?
+  direccion_destino   String
+  bultos              Int
+  km                  Float
+  zona_id             Int
+  zona                Zona         @relation(fields: [zona_id], references: [id])
+  urgente             Boolean      @default(false)
+  tarifa_total        Float
+  cod_monto           Float        @default(0) // Cash on Delivery (monto a cobrar)
+  pago_empresa        Float        @default(0) // Lo que se queda la empresa (tarifa + comision)
+  pago_remitente      Float        @default(0) // Lo que se le entrega al cliente (cod - comision)
+  lat                 Float        @default(0)
+  lng                 Float        @default(0)
+  estado              String       @default("PENDIENTE")
+  ruta_id             Int?
+  ruta                Ruta?        @relation(fields: [ruta_id], references: [id])
+  pago                Pago?
+  liquidacion_id      Int?
+  liquidacion         Liquidacion? @relation(fields: [liquidacion_id], references: [id])
+  createdAt           DateTime     @default(now())
+  updatedAt           DateTime     @updatedAt
+}
+
+enum EstadoRuta {
+  PROGRAMADA
+  EN_CURSO
+  FINALIZADA
+}
+
+model Ruta {
+  id            Int        @id @default(autoincrement())
+  fecha         DateTime
+  chofer_nombre String
+  estado        EstadoRuta @default(PROGRAMADA)
+  envios        Envio[]
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+}
+
+model Pago {
+  id              Int      @id @default(autoincrement())
+  envio_id        Int      @unique
+  envio           Envio    @relation(fields: [envio_id], references: [id])
+  monto_total     Float
+  monto_remitente Float // Lo que va al cliente (COD)
+  monto_empresa   Float // Lo que queda para la empresa (flete)
+  fecha           DateTime @default(now())
+}
+
+model Liquidacion {
+  id         Int      @id @default(autoincrement())
+  cliente_id Int
+  cliente    Cliente  @relation(fields: [cliente_id], references: [id])
+  monto      Float
+  fecha      DateTime @default(now())
+  envios     Envio[]
+}
