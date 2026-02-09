@@ -1,0 +1,10 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const rutaController_1 = require("../controllers/rutaController");
+const router = (0, express_1.Router)();
+router.post('/', rutaController_1.createRuta);
+router.get('/', rutaController_1.getRutas);
+router.post('/:id/asignar', rutaController_1.asignarEnvioARuta);
+router.post('/:id/optimizar', rutaController_1.optimizarRuta);
+exports.default = router;
