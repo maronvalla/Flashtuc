@@ -6,6 +6,7 @@ export const getClients = async (req: Request, res: Response) => {
         const clients = await prisma.cliente.findMany({ include: { zona: true } });
         res.json(clients);
     } catch (error) {
+        console.error('Error in getClients:', error);
         res.status(500).json({ error: 'Error fetching clients' });
     }
 };

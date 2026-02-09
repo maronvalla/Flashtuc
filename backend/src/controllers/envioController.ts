@@ -31,6 +31,7 @@ export const cotizarEnvio = async (req: Request, res: Response) => {
             total: Number(total.toFixed(2))
         });
     } catch (error) {
+        console.error('Error in cotizarEnvio:', error);
         res.status(500).json({ error: 'Error al calcular cotización' });
     }
 };
@@ -73,6 +74,7 @@ export const createEnvio = async (req: Request, res: Response) => {
 
         res.status(201).json(envio);
     } catch (error) {
+        console.error('Error in createEnvio:', error);
         res.status(500).json({ error: 'Error al crear envío' });
     }
 };
@@ -84,6 +86,7 @@ export const getEnvios = async (req: Request, res: Response) => {
         });
         res.json(envios);
     } catch (error) {
+        console.error('Error in getEnvios:', error);
         res.status(500).json({ error: 'Error al obtener envíos' });
     }
 };

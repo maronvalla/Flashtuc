@@ -6,6 +6,7 @@ export const getZones = async (req: Request, res: Response) => {
         const zones = await prisma.zona.findMany();
         res.json(zones);
     } catch (error) {
+        console.error('Error in getZones:', error);
         res.status(500).json({ error: 'Error fetching zones' });
     }
 };
@@ -22,6 +23,7 @@ export const getZoneById = async (req: Request, res: Response) => {
             res.status(404).json({ error: 'Zone not found' });
         }
     } catch (error) {
+        console.error('Error in getZoneById:', error);
         res.status(500).json({ error: 'Error fetching zone' });
     }
 };
@@ -37,6 +39,7 @@ export const createZone = async (req: Request, res: Response) => {
         });
         res.status(201).json(newZone);
     } catch (error) {
+        console.error('Error in createZone:', error);
         res.status(500).json({ error: 'Error creating zone' });
     }
 };
