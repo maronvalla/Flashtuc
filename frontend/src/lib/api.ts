@@ -1,4 +1,5 @@
 const API_BASE = import.meta.env.VITE_API_BASE || '';
+console.log('[API Settings] Detected Base URL:', API_BASE || '(Using Local Proxy)');
 
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
     const url = `${API_BASE}${path}`;
@@ -12,16 +13,30 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
         },
     });
 
+    const contentType = response.headers.get('content-type');
+    const isJson = contentType && contentType.includes('application/json');
+
     if (!response.ok) {
-        const error = await response.json().catch(() => ({}));
-        let errorMessage = error.message || error.error || `Error ${response.status}: ${response.statusText}`;
-        if (response.status === 404) {
-            errorMessage += ` (URL: ${url})`;
+        let errorMessage = `Error ${response.status}: ${response.statusText}`;
+        if (isJson) {
+            const error = await response.json().catch(() => ({}));
+            errorMessage = error.message || error.error || errorMessage;
+        } else {
+            const text = await response.text();
+            if (text.includes('<!doctype html>') || text.includes('<html')) {
+                errorMessage = `Error de Configuración: El servidor devolvió HTML en lugar de JSON. Esto suele significar que la URL del backend es incorrecta o falta en Vercel. (URL intentada: ${url})`;
+            }
         }
         throw new Error(errorMessage);
     }
 
     if (response.status === 204) return {} as T;
+
+    if (!isJson) {
+        const text = await response.text();
+        throw new Error(`Respuesta no válida del servidor. Se esperaba JSON pero se recibió: ${text.substring(0, 50)}... (URL: ${url})`);
+    }
+
     return response.json();
 }
 
