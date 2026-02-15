@@ -6,8 +6,9 @@ import { api } from '../lib/api';
 import toast from 'react-hot-toast';
 
 const Cotizador = () => {
-    const [formData, setFormData] = useState({
+    const [formData, setFormData] = useState<any>({
         cliente_id: '',
+        cliente_nuevo: null, // { nombre: '', dni: '', telefono: '' }
         destinatario_nombre: '',
         direccion_destino: '',
         bultos: 1,
@@ -44,13 +45,15 @@ const Cotizador = () => {
         setIsCalculating(true);
         const t = toast.loading('Calculando tarifa...');
         try {
-            const data = await api.cotizarShipment({
+            const payload = {
                 ...formData,
-                cliente_id: parseInt(formData.cliente_id),
                 zona_id: parseInt(formData.zona_id),
                 bultos: parseInt(formData.bultos.toString()),
                 km: parseFloat(formData.km.toString())
-            });
+            };
+            if (formData.cliente_id) payload.cliente_id = parseInt(formData.cliente_id);
+
+            const data = await api.cotizarShipment(payload);
             setCotizacion(data);
             toast.success('Cotización generada', { id: t });
         } catch (err: any) {
@@ -63,13 +66,15 @@ const Cotizador = () => {
     const handleCrearEnvio = async () => {
         const t = toast.loading('Registrando envío...');
         try {
-            await api.createShipment({
+            const payload = {
                 ...formData,
-                cliente_id: parseInt(formData.cliente_id),
                 zona_id: parseInt(formData.zona_id),
                 bultos: parseInt(formData.bultos.toString()),
                 km: parseFloat(formData.km.toString())
-            });
+            };
+            if (formData.cliente_id) payload.cliente_id = parseInt(formData.cliente_id);
+
+            await api.createShipment(payload);
             toast.success('Envío registrado con éxito', { id: t });
             setCotizacion(null);
             setFormData({
@@ -97,18 +102,86 @@ const Cotizador = () => {
                 <div className="lg:col-span-3 space-y-8">
                     <div className="bg-white p-10 rounded-[2.5rem] shadow-premium border border-slate-100 space-y-6">
                         <section className="space-y-4">
-                            <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest border-b border-slate-50 pb-2">Información de Origen</h3>
-                            <div>
-                                <label className="block text-sm font-bold text-slate-700 mb-2">Cliente Remitente</label>
-                                <select
-                                    className="w-full p-4 rounded-2xl border border-slate-200 bg-slate-50 focus:ring-2 focus:ring-orange-500 outline-none font-medium transition-all"
-                                    value={formData.cliente_id}
-                                    onChange={e => setFormData({ ...formData, cliente_id: e.target.value })}
-                                >
-                                    <option value="">Seleccionar Cliente</option>
-                                    {clientes.map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}
-                                </select>
+                            <div className="flex items-center justify-between border-b border-slate-50 pb-2">
+                                <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest">Información de Origen</h3>
+                                <div className="flex items-center gap-2">
+                                    <input
+                                        type="checkbox"
+                                        id="casual_check"
+                                        checked={!!formData.cliente_nuevo}
+                                        onChange={(e) => {
+                                            if (e.target.checked) {
+                                                setFormData({
+                                                    ...formData,
+                                                    cliente_id: '',
+                                                    cliente_nuevo: { nombre: '', dni: '', telefono: '' }
+                                                });
+                                            } else {
+                                                const { cliente_nuevo, ...rest } = formData;
+                                                setFormData(rest);
+                                            }
+                                        }}
+                                        className="w-4 h-4 accent-orange-500 cursor-pointer"
+                                    />
+                                    <label htmlFor="casual_check" className="text-[10px] font-black text-slate-500 uppercase cursor-pointer select-none">Cliente Casual</label>
+                                </div>
                             </div>
+
+                            {!formData.cliente_nuevo ? (
+                                <div>
+                                    <label className="block text-sm font-bold text-slate-700 mb-2">Cliente Remitente</label>
+                                    <select
+                                        className="w-full p-4 rounded-2xl border border-slate-200 bg-slate-50 focus:ring-2 focus:ring-orange-500 outline-none font-medium transition-all"
+                                        value={formData.cliente_id}
+                                        onChange={e => setFormData({ ...formData, cliente_id: e.target.value })}
+                                    >
+                                        <option value="">Seleccionar Cliente</option>
+                                        {clientes.map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}
+                                    </select>
+                                </div>
+                            ) : (
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-in fade-in slide-in-from-top-2 duration-300">
+                                    <div className="md:col-span-2">
+                                        <label className="block text-sm font-bold text-slate-700 mb-2">Nombre Completo</label>
+                                        <input
+                                            type="text"
+                                            className="w-full p-4 rounded-2xl border border-slate-200 bg-slate-50 focus:ring-2 focus:ring-orange-500 outline-none font-medium"
+                                            placeholder="Nombre del Cliente"
+                                            value={formData.cliente_nuevo.nombre}
+                                            onChange={e => setFormData({
+                                                ...formData,
+                                                cliente_nuevo: { ...formData.cliente_nuevo, nombre: e.target.value }
+                                            })}
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-bold text-slate-700 mb-2">DNI / CUIT</label>
+                                        <input
+                                            type="text"
+                                            className="w-full p-4 rounded-2xl border border-slate-200 bg-slate-50 focus:ring-2 focus:ring-orange-500 outline-none font-medium"
+                                            placeholder="Documento"
+                                            value={formData.cliente_nuevo.dni}
+                                            onChange={e => setFormData({
+                                                ...formData,
+                                                cliente_nuevo: { ...formData.cliente_nuevo, dni: e.target.value }
+                                            })}
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-bold text-slate-700 mb-2">Teléfono (Opcional)</label>
+                                        <input
+                                            type="text"
+                                            className="w-full p-4 rounded-2xl border border-slate-200 bg-slate-50 focus:ring-2 focus:ring-orange-500 outline-none font-medium"
+                                            placeholder="Contacto"
+                                            value={formData.cliente_nuevo.telefono}
+                                            onChange={e => setFormData({
+                                                ...formData,
+                                                cliente_nuevo: { ...formData.cliente_nuevo, telefono: e.target.value }
+                                            })}
+                                        />
+                                    </div>
+                                </div>
+                            )}
                         </section>
 
                         <section className="space-y-4">

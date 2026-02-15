@@ -303,7 +303,16 @@ const Rutas = () => {
 
                                     {ruta.estado === 'FINALIZADA' && (
                                         <div className="grow bg-slate-50 text-slate-400 font-black py-6 rounded-3xl flex items-center justify-center gap-3 border border-slate-100 uppercase text-[10px] tracking-[0.3em] font-mono italic">
-                                            <CheckCircle2 size={16} /> Operativo Completado
+                                            <div className="flex items-center gap-3">
+                                                <span><CheckCircle2 size={16} /> Operativo Completado</span>
+                                                <button
+                                                    onClick={() => handleEliminarRuta(ruta.id)}
+                                                    className="w-8 h-8 flex items-center justify-center bg-white border border-slate-200 rounded-full text-rose-400 hover:text-rose-600 hover:border-rose-200 hover:bg-rose-50 transition-all"
+                                                    title="Eliminar Registro"
+                                                >
+                                                    <Trash2 size={14} />
+                                                </button>
+                                            </div>
                                         </div>
                                     )}
                                 </div>

@@ -23,8 +23,9 @@ const Envios = () => {
     const [zonas, setZonas] = useState<any[]>([]);
 
     // Form State
-    const [newEnvio, setNewEnvio] = useState({
+    const [newEnvio, setNewEnvio] = useState<any>({
         cliente_id: '',
+        cliente_nuevo: null, // { nombre: '', dni: '', telefono: '' }
         destinatario_nombre: '',
         destinatario_telefono: '',
         direccion_destino: '',
@@ -104,14 +105,16 @@ const Envios = () => {
         e.preventDefault();
         const t = toast.loading('Creando envío...');
         try {
-            await api.createShipment({
+            const payload = {
                 ...newEnvio,
-                cliente_id: parseInt(newEnvio.cliente_id),
                 zona_id: parseInt(newEnvio.zona_id),
                 bultos: parseInt(newEnvio.bultos.toString()),
                 km: parseFloat(newEnvio.kg.toString()),
                 cod_monto: parseFloat(newEnvio.cod_monto.toString())
-            });
+            };
+            if (newEnvio.cliente_id) payload.cliente_id = parseInt(newEnvio.cliente_id);
+
+            await api.createShipment(payload);
             toast.success('Envío creado correctamente', { id: t });
             setIsModalOpen(false);
             resetForm();
@@ -124,6 +127,7 @@ const Envios = () => {
     const resetForm = () => {
         setNewEnvio({
             cliente_id: '',
+            cliente_nuevo: null,
             destinatario_nombre: '',
             destinatario_telefono: '',
             direccion_destino: '',
@@ -323,9 +327,33 @@ const Envios = () => {
                                 </button>
                             </div>
                             <form onSubmit={handleCreateEnvio} className="px-8 py-6 space-y-5 flex-1 overflow-y-auto custom-scrollbar">
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div className="space-y-2">
+                                <div className="space-y-4">
+                                    <div className="flex items-center justify-between">
                                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Cliente / Remitente</label>
+                                        <div className="flex items-center gap-2">
+                                            <input
+                                                type="checkbox"
+                                                id="casual_check_envios"
+                                                checked={!!newEnvio.cliente_nuevo}
+                                                onChange={(e) => {
+                                                    if (e.target.checked) {
+                                                        setNewEnvio({
+                                                            ...newEnvio,
+                                                            cliente_id: '',
+                                                            cliente_nuevo: { nombre: '', dni: '', telefono: '' }
+                                                        });
+                                                    } else {
+                                                        const { cliente_nuevo, ...rest } = newEnvio;
+                                                        setNewEnvio(rest);
+                                                    }
+                                                }}
+                                                className="w-4 h-4 accent-orange-500 cursor-pointer"
+                                            />
+                                            <label htmlFor="casual_check_envios" className="text-[10px] font-black text-slate-500 uppercase cursor-pointer select-none">Cliente Casual</label>
+                                        </div>
+                                    </div>
+
+                                    {!newEnvio.cliente_nuevo ? (
                                         <select
                                             required
                                             value={newEnvio.cliente_id}
@@ -335,7 +363,49 @@ const Envios = () => {
                                             <option value="">Seleccionar...</option>
                                             {clientes.map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}
                                         </select>
-                                    </div>
+                                    ) : (
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-in fade-in slide-in-from-top-2 duration-300">
+                                            <div className="md:col-span-2">
+                                                <input
+                                                    required
+                                                    type="text"
+                                                    className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-6 py-4 text-sm font-semibold outline-none focus:ring-4 focus:ring-orange-500/5 transition-all"
+                                                    placeholder="Nombre Completo"
+                                                    value={newEnvio.cliente_nuevo.nombre}
+                                                    onChange={e => setNewEnvio({
+                                                        ...newEnvio,
+                                                        cliente_nuevo: { ...newEnvio.cliente_nuevo, nombre: e.target.value }
+                                                    })}
+                                                />
+                                            </div>
+                                            <div>
+                                                <input
+                                                    required
+                                                    type="text"
+                                                    className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-6 py-4 text-sm font-semibold outline-none focus:ring-4 focus:ring-orange-500/5 transition-all"
+                                                    placeholder="DNI / CUIT"
+                                                    value={newEnvio.cliente_nuevo.dni}
+                                                    onChange={e => setNewEnvio({
+                                                        ...newEnvio,
+                                                        cliente_nuevo: { ...newEnvio.cliente_nuevo, dni: e.target.value }
+                                                    })}
+                                                />
+                                            </div>
+                                            <div>
+                                                <input
+                                                    type="text"
+                                                    className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-6 py-4 text-sm font-semibold outline-none focus:ring-4 focus:ring-orange-500/5 transition-all"
+                                                    placeholder="Teléfono (Opc.)"
+                                                    value={newEnvio.cliente_nuevo.telefono}
+                                                    onChange={e => setNewEnvio({
+                                                        ...newEnvio,
+                                                        cliente_nuevo: { ...newEnvio.cliente_nuevo, telefono: e.target.value }
+                                                    })}
+                                                />
+                                            </div>
+                                        </div>
+                                    )}
+
                                     <div className="space-y-2">
                                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Zona de Entrega</label>
                                         <select

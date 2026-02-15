@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import prisma from '../db';
 
 export const cotizarEnvio = async (req: Request, res: Response) => {
+    // cliente_nuevo is accepted but currently doesn't affect price (unless we add specific rules later)
     const { km, bultos, zona_id, urgente } = req.body;
 
     try {
@@ -37,9 +38,44 @@ export const cotizarEnvio = async (req: Request, res: Response) => {
 };
 
 export const createEnvio = async (req: Request, res: Response) => {
-    const { cliente_id, destinatario_nombre, destinatario_telefono, direccion_destino, bultos, km, zona_id, urgente, cod_monto } = req.body;
+    const { cliente_id, cliente_nuevo, destinatario_nombre, destinatario_telefono, direccion_destino, bultos, km, zona_id, urgente, cod_monto } = req.body;
 
     try {
+        let finalClienteId = Number(cliente_id);
+
+        // Logic for Casual/New Client
+        if (!finalClienteId && cliente_nuevo) {
+            const { nombre, dni, telefono } = cliente_nuevo;
+            if (!nombre || !dni) {
+                return res.status(400).json({ error: 'Nombre y DNI requeridos para nuevo cliente' });
+            }
+
+            // Check if client with DNI exists
+            let existingClient = await prisma.cliente.findFirst({
+                where: { dni_cuit: dni }
+            });
+
+            if (existingClient) {
+                finalClienteId = existingClient.id;
+            } else {
+                // Create new client
+                const newClient = await prisma.cliente.create({
+                    data: {
+                        nombre,
+                        dni_cuit: dni,
+                        telefono: telefono || '',
+                        direccion: 'CLIENTE CASUAL',
+                        email: '' // Optional
+                    }
+                });
+                finalClienteId = newClient.id;
+            }
+        }
+
+        if (!finalClienteId) {
+            return res.status(400).json({ error: 'Debe especificar un cliente o crear uno nuevo' });
+        }
+
         // En un caso real, recalculamos la tarifa aquí para seguridad
         const tarifa = await prisma.tarifa.findFirst({ where: { activa: true } });
         const zona = await prisma.zona.findUnique({ where: { id: Number(zona_id) } });
@@ -54,7 +90,7 @@ export const createEnvio = async (req: Request, res: Response) => {
 
         const envio = await prisma.envio.create({
             data: {
-                cliente_id: Number(cliente_id),
+                cliente_id: finalClienteId,
                 destinatario_nombre,
                 destinatario_telefono,
                 direccion_destino,
