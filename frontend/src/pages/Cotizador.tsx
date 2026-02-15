@@ -4,6 +4,7 @@ import { Calculator, Package, Truck, ArrowRight } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { api } from '../lib/api';
 import toast from 'react-hot-toast';
+import LocationPicker from '../components/LocationPicker';
 
 const Cotizador = () => {
     const [formData, setFormData] = useState<any>({
@@ -14,7 +15,9 @@ const Cotizador = () => {
         bultos: 1,
         km: 0,
         zona_id: '',
-        urgente: false
+        urgente: false,
+        lat: 0,
+        lng: 0
     });
     const [zonas, setZonas] = useState<any[]>([]);
     const [clientes, setClientes] = useState<any[]>([]);
@@ -199,12 +202,15 @@ const Cotizador = () => {
                                 </div>
                                 <div>
                                     <label className="block text-sm font-bold text-slate-700 mb-2">Dirección Exacta</label>
-                                    <input
-                                        type="text"
-                                        className="w-full p-4 rounded-2xl border border-slate-200 bg-slate-50"
-                                        placeholder="Av. Principal 123"
+                                    <LocationPicker
                                         value={formData.direccion_destino}
-                                        onChange={e => setFormData({ ...formData, direccion_destino: e.target.value })}
+                                        onChange={(address, lat, lng) => setFormData({
+                                            ...formData,
+                                            direccion_destino: address,
+                                            lat,
+                                            lng
+                                        })}
+                                        placeholder="Buscar dirección o marcar en mapa..."
                                     />
                                 </div>
                             </div>

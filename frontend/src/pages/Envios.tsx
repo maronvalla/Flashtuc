@@ -9,11 +9,11 @@ import {
     User,
     Clock,
     Plus,
-    X,
-    Loader2
+    X
 } from 'lucide-react';
 import { api } from '../lib/api';
 import toast from 'react-hot-toast';
+import LocationPicker from '../components/LocationPicker';
 
 const Envios = () => {
     const [envios, setEnvios] = useState<any[]>([]);
@@ -38,11 +38,6 @@ const Envios = () => {
         cod_monto: 0
     });
 
-    // Autocomplete State
-    const [addressQuery, setAddressQuery] = useState('');
-    const [suggestions, setSuggestions] = useState<any[]>([]);
-    const [isSearchingAddress, setIsSearchingAddress] = useState(false);
-
     const fetchData = async () => {
         try {
             const [enviosData, clientesData, zonasData] = await Promise.all([
@@ -63,43 +58,6 @@ const Envios = () => {
     useEffect(() => {
         fetchData();
     }, []);
-
-    // Address Autocomplete Logic (using Nominatim - OpenStreetMap)
-    useEffect(() => {
-        const delayDebounceFn = setTimeout(() => {
-            if (addressQuery.length > 3) {
-                searchAddress(addressQuery);
-            } else {
-                setSuggestions([]);
-            }
-        }, 500);
-
-        return () => clearTimeout(delayDebounceFn);
-    }, [addressQuery]);
-
-    const searchAddress = async (query: string) => {
-        setIsSearchingAddress(true);
-        try {
-            const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=5&countrycodes=ar`);
-            const data = await response.json();
-            setSuggestions(data);
-        } catch (error) {
-            console.error('Error searching address:', error);
-        } finally {
-            setIsSearchingAddress(false);
-        }
-    };
-
-    const handleSelectAddress = (suggestion: any) => {
-        setNewEnvio({
-            ...newEnvio,
-            direccion_destino: suggestion.display_name,
-            lat: parseFloat(suggestion.lat),
-            lng: parseFloat(suggestion.lon)
-        });
-        setAddressQuery(suggestion.display_name);
-        setSuggestions([]);
-    };
 
     const handleCreateEnvio = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -139,8 +97,6 @@ const Envios = () => {
             lng: 0,
             cod_monto: 0
         });
-        setAddressQuery('');
-        setSuggestions([]);
     };
 
     const getStatusStyle = (estado: string) => {
@@ -454,42 +410,16 @@ const Envios = () => {
 
                                 <div className="space-y-2 relative">
                                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Dirección de Destino</label>
-                                    <div className="relative">
-                                        <input
-                                            required
-                                            value={addressQuery}
-                                            onChange={(e) => setAddressQuery(e.target.value)}
-                                            className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-6 py-4 text-sm font-semibold outline-none focus:ring-4 focus:ring-orange-500/5 transition-all italic"
-                                            placeholder="Escribe para buscar dirección..."
-                                        />
-                                        {isSearchingAddress && (
-                                            <div className="absolute right-4 top-1/2 -translate-y-1/2">
-                                                <Loader2 className="animate-spin text-orange-500" size={18} />
-                                            </div>
-                                        )}
-                                    </div>
-
-                                    <AnimatePresence>
-                                        {suggestions.length > 0 && (
-                                            <motion.div
-                                                initial={{ opacity: 0, y: -10 }}
-                                                animate={{ opacity: 1, y: 0 }}
-                                                exit={{ opacity: 0, y: -10 }}
-                                                className="absolute z-50 w-full mt-2 bg-white rounded-2xl shadow-premium border border-slate-100 max-h-48 overflow-y-auto"
-                                            >
-                                                {suggestions.map((s, i) => (
-                                                    <button
-                                                        key={i}
-                                                        type="button"
-                                                        onClick={() => handleSelectAddress(s)}
-                                                        className="w-full text-left px-6 py-4 text-xs font-bold text-slate-700 hover:bg-slate-50 border-b border-slate-50 last:border-none transition-colors"
-                                                    >
-                                                        {s.display_name}
-                                                    </button>
-                                                ))}
-                                            </motion.div>
-                                        )}
-                                    </AnimatePresence>
+                                    <LocationPicker
+                                        value={newEnvio.direccion_destino}
+                                        onChange={(address, lat, lng) => setNewEnvio({
+                                            ...newEnvio,
+                                            direccion_destino: address,
+                                            lat,
+                                            lng
+                                        })}
+                                        placeholder="Buscar dirección o marcar en mapa..."
+                                    />
                                 </div>
 
                                 <div className="grid grid-cols-2 gap-4">
