@@ -60,6 +60,7 @@ export const api = {
     createRoute: (data: any) => request<any>('/api/rutas', { method: 'POST', body: JSON.stringify(data) }),
     updateRoute: (id: string, data: any) => request<any>(`/api/rutas/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
     optimizeRoute: (id: string) => request<any>(`/api/rutas/${id}/optimize`, { method: 'POST' }),
+    deleteRoute: (id: string) => request<any>(`/api/rutas/${id}`, { method: 'DELETE' }),
 
     // Zones & Tariffs
     getZones: () => request<any[]>('/api/zonas'),

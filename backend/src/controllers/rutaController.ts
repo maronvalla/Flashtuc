@@ -55,35 +55,55 @@ export const optimizarRuta = async (req: Request, res: Response) => {
     try {
         const ruta = await prisma.ruta.findUnique({
             where: { id: Number(id) },
-            include: { envios: true }
+            include: { envios: { include: { zona: true } } }
         });
 
         if (!ruta) return res.status(404).json({ error: 'Ruta no encontrada' });
 
-        const envios = [...ruta.envios];
-        const enviosOrdenados = [];
-        let currentPos = { lat: -26.8241, lng: -65.2226 }; // San Miguel de Tucumán (Centro aproximado)
+        let envios = [...ruta.envios];
+        let enviosOrdenados = [];
 
-        // Algoritmo Nearest-Neighbor
-        while (envios.length > 0) {
-            let nearestIndex = 0;
-            let minDistance = Infinity;
+        // Check if we have valid coordinates to use spatial optimization
+        const hasValidCoords = envios.some(e => (e.lat && e.lat !== 0) || (e.lng && e.lng !== 0));
 
-            for (let i = 0; i < envios.length; i++) {
-                // Cálculo de distancia euclidiana simple para coordenadas
-                const d = Math.sqrt(
-                    Math.pow((envios[i].lat || 0) - currentPos.lat, 2) +
-                    Math.pow((envios[i].lng || 0) - currentPos.lng, 2)
-                );
-                if (d < minDistance) {
-                    minDistance = d;
-                    nearestIndex = i;
+        if (hasValidCoords) {
+            let currentPos = { lat: -26.8241, lng: -65.2226 }; // San Miguel de Tucumán (Centro aproximado)
+
+            // Algoritmo Nearest-Neighbor
+            while (envios.length > 0) {
+                let nearestIndex = 0;
+                let minDistance = Infinity;
+
+                for (let i = 0; i < envios.length; i++) {
+                    // Cálculo de distancia euclidiana simple para coordenadas
+                    const d = Math.sqrt(
+                        Math.pow((envios[i].lat || 0) - currentPos.lat, 2) +
+                        Math.pow((envios[i].lng || 0) - currentPos.lng, 2)
+                    );
+                    if (d < minDistance) {
+                        minDistance = d;
+                        nearestIndex = i;
+                    }
                 }
-            }
 
-            const nearest = envios.splice(nearestIndex, 1)[0];
-            enviosOrdenados.push(nearest);
-            currentPos = { lat: nearest.lat || 0, lng: nearest.lng || 0 };
+                const nearest = envios.splice(nearestIndex, 1)[0];
+                enviosOrdenados.push(nearest);
+                currentPos = { lat: nearest.lat || 0, lng: nearest.lng || 0 };
+            }
+        } else {
+            // Fallback: Sort by Zone (to group by area) and then by Address (alphanumeric)
+            enviosOrdenados = envios.sort((a, b) => {
+                // Primary sort: Zona Name
+                const zonaA = a.zona?.nombre || '';
+                const zonaB = b.zona?.nombre || '';
+                if (zonaA < zonaB) return -1;
+                if (zonaA > zonaB) return 1;
+
+                // Secondary sort: Address
+                const dirA = a.direccion_destino || '';
+                const dirB = b.direccion_destino || '';
+                return dirA.localeCompare(dirB, undefined, { numeric: true, sensitivity: 'base' });
+            });
         }
 
         // Persistir el nuevo orden en la base de datos usando el campo 'posicion'
@@ -133,5 +153,30 @@ export const updateRuta = async (req: Request, res: Response) => {
     } catch (error) {
         console.error('Error updating route:', error);
         res.status(500).json({ error: 'Error al actualizar ruta' });
+    }
+};
+
+export const deleteRuta = async (req: Request, res: Response) => {
+    const { id } = req.params;
+    try {
+        // 1. Un-assign shipments (set ruta_id to null, status to PENDIENTE)
+        await prisma.envio.updateMany({
+            where: { ruta_id: Number(id) },
+            data: {
+                ruta_id: null,
+                estado: 'PENDIENTE',
+                posicion: 0
+            }
+        });
+
+        // 2. Delete the route
+        await prisma.ruta.delete({
+            where: { id: Number(id) }
+        });
+
+        res.json({ message: 'Ruta eliminada correctamente' });
+    } catch (error) {
+        console.error('Error deleting route:', error);
+        res.status(500).json({ error: 'Error al eliminar ruta' });
     }
 };

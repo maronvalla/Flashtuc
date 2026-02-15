@@ -13,7 +13,8 @@ import {
     CheckCircle,
     XCircle,
     RotateCcw,
-    Flag
+    Flag,
+    Trash2
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { api } from '../lib/api';
@@ -98,6 +99,19 @@ const Rutas = () => {
             fetchData();
         } catch (err: any) {
             toast.error('Error al optimizar recorrido', { id: t });
+        }
+    };
+
+    const handleEliminarRuta = async (id: number) => {
+        if (!window.confirm('¿Estás seguro de que deseas eliminar esta hoja de ruta? Los envíos volverán a estar pendientes.')) return;
+
+        const t = toast.loading('Eliminando hoja de ruta...');
+        try {
+            await api.deleteRoute(id.toString());
+            toast.success('Ruta eliminada', { id: t });
+            fetchData();
+        } catch (err: any) {
+            toast.error('Error al eliminar ruta', { id: t });
         }
     };
 
@@ -196,13 +210,23 @@ const Rutas = () => {
                                         )}>
                                             {ruta.estado}
                                         </span>
-                                        {ruta.estado === 'PROGRAMADA' && ruta.envios?.length > 1 && (
-                                            <button
-                                                onClick={() => handleOptimizarRuta(ruta.id)}
-                                                className="flex items-center gap-2 text-[9px] font-black text-orange-500 uppercase tracking-widest hover:text-orange-600 transition-all font-mono"
-                                            >
-                                                <Navigation2 size={12} fill="currentColor" /> Optimizar Recorrido
-                                            </button>
+                                        {ruta.estado === 'PROGRAMADA' && (
+                                            <div className="flex items-center gap-3">
+                                                {ruta.envios?.length > 1 && (
+                                                    <button
+                                                        onClick={() => handleOptimizarRuta(ruta.id)}
+                                                        className="flex items-center gap-2 text-[9px] font-black text-orange-500 uppercase tracking-widest hover:text-orange-600 transition-all font-mono"
+                                                    >
+                                                        <Navigation2 size={12} fill="currentColor" /> Optimizar Recorrido
+                                                    </button>
+                                                )}
+                                                <button
+                                                    onClick={() => handleEliminarRuta(ruta.id)}
+                                                    className="flex items-center gap-2 text-[9px] font-black text-rose-500 uppercase tracking-widest hover:text-rose-600 transition-all font-mono"
+                                                >
+                                                    <Trash2 size={12} /> Eliminar
+                                                </button>
+                                            </div>
                                         )}
                                     </div>
                                 </div>
