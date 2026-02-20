@@ -14,7 +14,8 @@ import {
     XCircle,
     RotateCcw,
     Flag,
-    Trash2
+    Trash2,
+    ExternalLink
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { api } from '../lib/api';
@@ -24,6 +25,8 @@ const Rutas = () => {
     const [rutas, setRutas] = useState<any[]>([]);
     const [enviosSinRuta, setEnviosSinRuta] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
+    const [draggingEnvioId, setDraggingEnvioId] = useState<number | null>(null);
+    const [dragOverRutaId, setDragOverRutaId] = useState<number | null>(null);
 
     const fetchData = async () => {
         try {
@@ -61,12 +64,32 @@ const Rutas = () => {
     const handleAsignarEnvio = async (envioId: number, rutaId: number) => {
         const t = toast.loading('Asignando envío...');
         try {
-            await api.updateShipment(envioId.toString(), { ruta_id: rutaId });
+            await api.assignShipmentsToRoute(rutaId.toString(), [envioId]);
             toast.success('Envío asignado', { id: t });
             fetchData();
         } catch (err: any) {
             toast.error('Error al asignar', { id: t });
         }
+    };
+
+    const handleDragStart = (envioId: number) => {
+        setDraggingEnvioId(envioId);
+    };
+
+    const handleDragEnd = () => {
+        setDraggingEnvioId(null);
+        setDragOverRutaId(null);
+    };
+
+    const handleDropOnRuta = async (ruta: any) => {
+        if (!draggingEnvioId) return;
+        if (ruta.estado !== 'PROGRAMADA') {
+            toast.error('Solo puedes soltar envíos en rutas PROGRAMADAS');
+            handleDragEnd();
+            return;
+        }
+        await handleAsignarEnvio(draggingEnvioId, ruta.id);
+        handleDragEnd();
     };
 
     const handleIniciarOperativo = async (id: number) => {
@@ -94,12 +117,61 @@ const Rutas = () => {
     const handleOptimizarRuta = async (id: number) => {
         const t = toast.loading('Calculando ruta más eficiente...');
         try {
-            await api.optimizeRoute(id.toString());
-            toast.success('Recorrido optimizado', { id: t });
+            const result = await api.optimizeRoute(id.toString());
+            const distance = result?.metadata?.totalDistanceKm;
+            const totalStops = result?.metadata?.totalStops;
+            toast.success(
+                `Recorrido optimizado${totalStops ? ` (${totalStops} paradas` : ''}${distance ? `, ${distance} km aprox` : ''}${totalStops ? ')' : ''}`,
+                { id: t }
+            );
             fetchData();
         } catch (err: any) {
             toast.error('Error al optimizar recorrido', { id: t });
         }
+    };
+
+    const isValidCoord = (lat: any, lng: any) => {
+        const nLat = Number(lat);
+        const nLng = Number(lng);
+        return Number.isFinite(nLat) && Number.isFinite(nLng) && !(nLat === 0 && nLng === 0);
+    };
+
+    const getMapPoint = (envio: any) => {
+        if (isValidCoord(envio.lat, envio.lng)) {
+            return `${envio.lat},${envio.lng}`;
+        }
+        return envio.direccion_destino || '';
+    };
+
+    const handleAbrirEnGoogleMaps = (ruta: any) => {
+        const orderedStops = [...(ruta.envios || [])]
+            .sort((a: any, b: any) => (a.posicion || 0) - (b.posicion || 0))
+            .map(getMapPoint)
+            .filter(Boolean);
+
+        if (orderedStops.length === 0) {
+            toast.error('La ruta no tiene direcciones válidas para abrir en Google Maps');
+            return;
+        }
+
+        const MAX_STOPS = 10;
+        const limitedStops = orderedStops.slice(0, MAX_STOPS);
+        if (orderedStops.length > MAX_STOPS) {
+            toast('Google Maps abrirá las primeras 10 paradas de la ruta');
+        }
+
+        let url = '';
+        if (limitedStops.length === 1) {
+            url = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(limitedStops[0])}`;
+        } else {
+            const origin = limitedStops[0];
+            const destination = limitedStops[limitedStops.length - 1];
+            const waypoints = limitedStops.slice(1, -1).map(encodeURIComponent).join('|');
+            url = `https://www.google.com/maps/dir/?api=1&travelmode=driving&origin=${encodeURIComponent(origin)}&destination=${encodeURIComponent(destination)}`;
+            if (waypoints) url += `&waypoints=${waypoints}`;
+        }
+
+        window.open(url, '_blank', 'noopener,noreferrer');
     };
 
     const handleEliminarRuta = async (id: number) => {
@@ -174,8 +246,21 @@ const Rutas = () => {
                                 key={ruta.id}
                                 className={cn(
                                     "bg-white rounded-[3.5rem] border border-slate-100 shadow-premium overflow-hidden group transition-all relative",
-                                    ruta.estado === 'EN_CURSO' && "ring-2 ring-emerald-500/20 shadow-xl shadow-emerald-500/5"
+                                    ruta.estado === 'EN_CURSO' && "ring-2 ring-emerald-500/20 shadow-xl shadow-emerald-500/5",
+                                    dragOverRutaId === ruta.id && ruta.estado === 'PROGRAMADA' && "ring-2 ring-orange-400/40 border-orange-200"
                                 )}
+                                onDragOver={(e) => {
+                                    if (ruta.estado !== 'PROGRAMADA') return;
+                                    e.preventDefault();
+                                    if (dragOverRutaId !== ruta.id) setDragOverRutaId(ruta.id);
+                                }}
+                                onDragLeave={() => {
+                                    if (dragOverRutaId === ruta.id) setDragOverRutaId(null);
+                                }}
+                                onDrop={async (e) => {
+                                    e.preventDefault();
+                                    await handleDropOnRuta(ruta);
+                                }}
                             >
                                 <div className="p-10 pb-6 flex justify-between items-start">
                                     <div className="flex items-center gap-6">
@@ -212,6 +297,14 @@ const Rutas = () => {
                                         </span>
                                         {ruta.estado === 'PROGRAMADA' && (
                                             <div className="flex items-center gap-3">
+                                                {ruta.envios?.length > 0 && (
+                                                    <button
+                                                        onClick={() => handleAbrirEnGoogleMaps(ruta)}
+                                                        className="flex items-center gap-2 text-[9px] font-black text-sky-600 uppercase tracking-widest hover:text-sky-700 transition-all font-mono"
+                                                    >
+                                                        <ExternalLink size={12} /> Abrir en Maps
+                                                    </button>
+                                                )}
                                                 {ruta.envios?.length > 1 && (
                                                     <button
                                                         onClick={() => handleOptimizarRuta(ruta.id)}
@@ -354,6 +447,9 @@ const Rutas = () => {
                                     <motion.div
                                         layout
                                         key={e.id}
+                                        draggable
+                                        onDragStart={() => handleDragStart(e.id)}
+                                        onDragEnd={handleDragEnd}
                                         className="p-6 bg-white/5 rounded-3xl border border-white/10 hover:border-orange-500/50 hover:bg-white/10 transition-all cursor-pointer group backdrop-blur-md"
                                     >
                                         <div className="flex justify-between items-start mb-4">

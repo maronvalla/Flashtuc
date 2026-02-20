@@ -1,6 +1,93 @@
 import { Request, Response } from 'express';
 import prisma from '../db';
 
+const DEFAULT_DEPOT = { lat: -26.8241, lng: -65.2226 }; // San Miguel de Tucuman (center approx)
+
+const isValidCoordinate = (lat: unknown, lng: unknown) => {
+    const nLat = Number(lat);
+    const nLng = Number(lng);
+    return Number.isFinite(nLat) && Number.isFinite(nLng) && !(nLat === 0 && nLng === 0);
+};
+
+const haversineKm = (aLat: number, aLng: number, bLat: number, bLng: number) => {
+    const toRad = (deg: number) => (deg * Math.PI) / 180;
+    const earthRadiusKm = 6371;
+    const dLat = toRad(bLat - aLat);
+    const dLng = toRad(bLng - aLng);
+    const lat1 = toRad(aLat);
+    const lat2 = toRad(bLat);
+    const h =
+        Math.sin(dLat / 2) ** 2 +
+        Math.sin(dLng / 2) ** 2 * Math.cos(lat1) * Math.cos(lat2);
+    return 2 * earthRadiusKm * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h));
+};
+
+const pathDistanceFromOrigin = (path: any[], origin: { lat: number; lng: number }) => {
+    if (!path.length) return 0;
+    let total = 0;
+    let current = origin;
+    for (const stop of path) {
+        total += haversineKm(current.lat, current.lng, Number(stop.lat), Number(stop.lng));
+        current = { lat: Number(stop.lat), lng: Number(stop.lng) };
+    }
+    return total;
+};
+
+const nearestNeighborOrder = (stops: any[], origin: { lat: number; lng: number }) => {
+    const remaining = [...stops];
+    const ordered: any[] = [];
+    let current = origin;
+
+    while (remaining.length > 0) {
+        let nearestIndex = 0;
+        let minDistance = Infinity;
+
+        for (let i = 0; i < remaining.length; i++) {
+            const d = haversineKm(current.lat, current.lng, Number(remaining[i].lat), Number(remaining[i].lng));
+            if (d < minDistance) {
+                minDistance = d;
+                nearestIndex = i;
+            }
+        }
+
+        const next = remaining.splice(nearestIndex, 1)[0];
+        ordered.push(next);
+        current = { lat: Number(next.lat), lng: Number(next.lng) };
+    }
+
+    return ordered;
+};
+
+const twoOptImprove = (initialOrder: any[], origin: { lat: number; lng: number }) => {
+    if (initialOrder.length < 4) return initialOrder;
+
+    let best = [...initialOrder];
+    let improved = true;
+    let loops = 0;
+
+    while (improved && loops < 8) {
+        improved = false;
+        loops += 1;
+
+        for (let i = 0; i < best.length - 2; i++) {
+            for (let k = i + 1; k < best.length - 1; k++) {
+                const candidate = [
+                    ...best.slice(0, i),
+                    ...best.slice(i, k + 1).reverse(),
+                    ...best.slice(k + 1)
+                ];
+
+                if (pathDistanceFromOrigin(candidate, origin) + 0.001 < pathDistanceFromOrigin(best, origin)) {
+                    best = candidate;
+                    improved = true;
+                }
+            }
+        }
+    }
+
+    return best;
+};
+
 export const createRuta = async (req: Request, res: Response) => {
     const { fecha, chofer_nombre } = req.body;
     try {
@@ -22,6 +109,7 @@ export const getRutas = async (req: Request, res: Response) => {
         const rutas = await prisma.ruta.findMany({
             include: {
                 envios: {
+                    include: { zona: true },
                     orderBy: { posicion: 'asc' }
                 }
             }
@@ -33,25 +121,60 @@ export const getRutas = async (req: Request, res: Response) => {
 };
 
 export const asignarEnvioARuta = async (req: Request, res: Response) => {
-    const { id } = req.params; // Ruta ID
-    const { envio_ids } = req.body; // Array de IDs de envíos
+    const { id } = req.params;
+    const { envio_ids } = req.body;
+
     try {
-        await prisma.envio.updateMany({
-            where: { id: { in: envio_ids.map(Number) } },
-            data: { ruta_id: Number(id), estado: 'EN_RUTA' }
+        const rutaId = Number(id);
+        if (!Array.isArray(envio_ids) || envio_ids.length === 0) {
+            return res.status(400).json({ error: 'Debe enviar al menos un envio para asignar' });
+        }
+
+        const normalizedIds = envio_ids.map(Number).filter((n: number) => Number.isInteger(n) && n > 0);
+        if (normalizedIds.length !== envio_ids.length) {
+            return res.status(400).json({ error: 'IDs de envio invalidos' });
+        }
+
+        const maxPos = await prisma.envio.aggregate({
+            where: { ruta_id: rutaId },
+            _max: { posicion: true }
         });
+        let currentPos = maxPos._max.posicion || 0;
+
+        await prisma.$transaction(
+            normalizedIds.map((envioId: number) => {
+                currentPos += 1;
+                return prisma.envio.update({
+                    where: { id: envioId },
+                    data: {
+                        ruta_id: rutaId,
+                        posicion: currentPos,
+                        estado: 'PENDIENTE'
+                    }
+                });
+            })
+        );
+
         const updatedRuta = await prisma.ruta.findUnique({
-            where: { id: Number(id) },
-            include: { envios: true }
+            where: { id: rutaId },
+            include: {
+                envios: {
+                    include: { zona: true },
+                    orderBy: { posicion: 'asc' }
+                }
+            }
         });
+
         res.json(updatedRuta);
     } catch (error) {
-        res.status(500).json({ error: 'Error al asignar envíos a la ruta' });
+        console.error('Error in asignarEnvioARuta:', error);
+        res.status(500).json({ error: 'Error al asignar envios a la ruta' });
     }
 };
 
 export const optimizarRuta = async (req: Request, res: Response) => {
     const { id } = req.params;
+
     try {
         const ruta = await prisma.ruta.findUnique({
             where: { id: Number(id) },
@@ -59,55 +182,43 @@ export const optimizarRuta = async (req: Request, res: Response) => {
         });
 
         if (!ruta) return res.status(404).json({ error: 'Ruta no encontrada' });
+        if (!ruta.envios.length) return res.status(400).json({ error: 'La ruta no tiene envios asignados' });
 
-        let envios = [...ruta.envios];
-        let enviosOrdenados = [];
+        const enviosGeolocalizados = ruta.envios.filter((e) => isValidCoordinate(e.lat, e.lng));
+        const enviosSinCoords = ruta.envios.filter((e) => !isValidCoordinate(e.lat, e.lng));
 
-        // Check if we have valid coordinates to use spatial optimization
-        const hasValidCoords = envios.some(e => (e.lat && e.lat !== 0) || (e.lng && e.lng !== 0));
+        const bodyStartLat = Number(req.body?.start_lat);
+        const bodyStartLng = Number(req.body?.start_lng);
+        const customOrigin =
+            Number.isFinite(bodyStartLat) &&
+            Number.isFinite(bodyStartLng) &&
+            !(bodyStartLat === 0 && bodyStartLng === 0)
+                ? { lat: bodyStartLat, lng: bodyStartLng }
+                : null;
+        const origin = customOrigin || DEFAULT_DEPOT;
 
-        if (hasValidCoords) {
-            let currentPos = { lat: -26.8241, lng: -65.2226 }; // San Miguel de Tucumán (Centro aproximado)
-
-            // Algoritmo Nearest-Neighbor
-            while (envios.length > 0) {
-                let nearestIndex = 0;
-                let minDistance = Infinity;
-
-                for (let i = 0; i < envios.length; i++) {
-                    // Cálculo de distancia euclidiana simple para coordenadas
-                    const d = Math.sqrt(
-                        Math.pow((envios[i].lat || 0) - currentPos.lat, 2) +
-                        Math.pow((envios[i].lng || 0) - currentPos.lng, 2)
-                    );
-                    if (d < minDistance) {
-                        minDistance = d;
-                        nearestIndex = i;
-                    }
-                }
-
-                const nearest = envios.splice(nearestIndex, 1)[0];
-                enviosOrdenados.push(nearest);
-                currentPos = { lat: nearest.lat || 0, lng: nearest.lng || 0 };
-            }
-        } else {
-            // Fallback: Sort by Zone (to group by area) and then by Address (alphanumeric)
-            enviosOrdenados = envios.sort((a, b) => {
-                // Primary sort: Zona Name
-                const zonaA = a.zona?.nombre || '';
-                const zonaB = b.zona?.nombre || '';
-                if (zonaA < zonaB) return -1;
-                if (zonaA > zonaB) return 1;
-
-                // Secondary sort: Address
-                const dirA = a.direccion_destino || '';
-                const dirB = b.direccion_destino || '';
-                return dirA.localeCompare(dirB, undefined, { numeric: true, sensitivity: 'base' });
-            });
+        let enviosOrdenadosGeoloc: any[] = [];
+        if (enviosGeolocalizados.length > 0) {
+            const initialPath = nearestNeighborOrder(enviosGeolocalizados, origin);
+            enviosOrdenadosGeoloc = twoOptImprove(initialPath, origin);
         }
 
-        // Persistir el nuevo orden en la base de datos usando el campo 'posicion'
-        await Promise.all(
+        const sinCoordsOrdenados = [...enviosSinCoords].sort((a, b) => {
+            const zonaA = a.zona?.nombre || '';
+            const zonaB = b.zona?.nombre || '';
+            if (zonaA !== zonaB) return zonaA.localeCompare(zonaB, undefined, { sensitivity: 'base' });
+
+            const dirA = a.direccion_destino || '';
+            const dirB = b.direccion_destino || '';
+            return dirA.localeCompare(dirB, undefined, { numeric: true, sensitivity: 'base' });
+        });
+
+        const enviosOrdenados = [...enviosOrdenadosGeoloc, ...sinCoordsOrdenados];
+        if (!enviosOrdenados.length) {
+            return res.status(400).json({ error: 'No hay envios validos para optimizar' });
+        }
+
+        await prisma.$transaction(
             enviosOrdenados.map((envio, idx) =>
                 prisma.envio.update({
                     where: { id: envio.id },
@@ -116,8 +227,30 @@ export const optimizarRuta = async (req: Request, res: Response) => {
             )
         );
 
+        if (ruta.estado === 'EN_CURSO') {
+            await prisma.envio.updateMany({
+                where: { id: { in: enviosOrdenados.map((e) => e.id) }, estado: 'PENDIENTE' },
+                data: { estado: 'EN_RUTA' }
+            });
+        } else {
+            await prisma.envio.updateMany({
+                where: { id: { in: enviosOrdenados.map((e) => e.id) }, estado: 'EN_RUTA' },
+                data: { estado: 'PENDIENTE' }
+            });
+        }
+
+        const totalDistanceKm = Number(pathDistanceFromOrigin(enviosOrdenadosGeoloc, origin).toFixed(2));
+
         res.json({
-            message: 'Ruta optimizada con éxito',
+            message: 'Ruta optimizada con exito',
+            metadata: {
+                algorithm: enviosGeolocalizados.length > 0 ? 'nearest-neighbor + 2-opt' : 'zona + direccion',
+                totalStops: enviosOrdenados.length,
+                geolocatedStops: enviosGeolocalizados.length,
+                unlocatedStops: enviosSinCoords.length,
+                totalDistanceKm,
+                origin
+            },
             envios: enviosOrdenados.map((e, idx) => ({ ...e, posicion: idx + 1 }))
         });
     } catch (error) {
@@ -138,13 +271,17 @@ export const updateRuta = async (req: Request, res: Response) => {
         const updatedRuta = await prisma.ruta.update({
             where: { id: Number(id) },
             data: updateData,
-            include: { envios: true }
+            include: {
+                envios: {
+                    include: { zona: true },
+                    orderBy: { posicion: 'asc' }
+                }
+            }
         });
 
-        // Si la ruta inicia, pasamos todos sus envíos a 'EN_RUTA' (por si alguno quedó en PENDIENTE)
         if (estado === 'EN_CURSO') {
             await prisma.envio.updateMany({
-                where: { ruta_id: Number(id) },
+                where: { ruta_id: Number(id), estado: 'PENDIENTE' },
                 data: { estado: 'EN_RUTA' }
             });
         }
@@ -159,7 +296,6 @@ export const updateRuta = async (req: Request, res: Response) => {
 export const deleteRuta = async (req: Request, res: Response) => {
     const { id } = req.params;
     try {
-        // 1. Un-assign shipments (set ruta_id to null, status to PENDIENTE)
         await prisma.envio.updateMany({
             where: { ruta_id: Number(id) },
             data: {
@@ -169,7 +305,6 @@ export const deleteRuta = async (req: Request, res: Response) => {
             }
         });
 
-        // 2. Delete the route
         await prisma.ruta.delete({
             where: { id: Number(id) }
         });
